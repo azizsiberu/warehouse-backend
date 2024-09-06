@@ -7,51 +7,53 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-        field: "id_produk", // Sesuai dengan kolom di tabel
+        field: "id_produk",
       },
       name: {
         type: DataTypes.STRING,
-        field: "nama", // Nama kolom di database adalah 'nama'
+        field: "nama",
       },
       sku: {
         type: DataTypes.STRING,
       },
       product_image: {
         type: DataTypes.STRING,
-        field: "foto_produk", // Nama kolom di database adalah 'foto_produk'
+        field: "foto_produk",
       },
       selling_price: {
         type: DataTypes.FLOAT,
-        field: "harga_jual", // Nama kolom di database adalah 'harga_jual'
+        field: "harga_jual",
       },
       category_id: {
         type: DataTypes.INTEGER,
-        field: "id_kategori", // Nama kolom di database adalah 'id_kategori'
+        field: "id_kategori",
       },
       subcategory_id: {
         type: DataTypes.INTEGER,
-        field: "id_subkategori", // Nama kolom di database adalah 'id_subkategori'
+        field: "id_subkategori", // Sesuaikan dengan kolom di tabel
       },
       vendor_id: {
         type: DataTypes.INTEGER,
-        field: "id_vendor", // Nama kolom di database adalah 'id_vendor'
+        field: "id_vendor",
       },
       type_id: {
         type: DataTypes.INTEGER,
-        field: "id_jenis", // Nama kolom di database adalah 'id_jenis'
+        field: "id_jenis",
       },
     },
     {
-      tableName: "produk", // Nama tabel di database adalah 'produk'
+      tableName: "produk",
       timestamps: false,
     }
   );
 
+  // Relasi ke tabel lain
   Product.associate = (models) => {
-    Product.belongsTo(models.Category, { foreignKey: "id_kategori" }); // Nama kolom di database adalah 'id_kategori'
-    Product.belongsTo(models.SubCategory, { foreignKey: "id_subkategori" }); // Nama kolom di database adalah 'id_subkategori'
-    Product.belongsTo(models.Vendor, { foreignKey: "id_vendor" }); // Nama kolom di database adalah 'id_vendor'
-    Product.belongsTo(models.ProductType, { foreignKey: "id_jenis" }); // Nama kolom di database adalah 'id_jenis'
+    Product.belongsTo(models.Category, { foreignKey: "id_kategori" });
+    Product.belongsTo(models.SubCategory, { foreignKey: "id_subkategori" });
+    Product.belongsTo(models.Vendor, { foreignKey: "id_vendor" });
+    Product.belongsTo(models.ProductType, { foreignKey: "id_jenis" });
+    Product.hasOne(models.Sofa, { foreignKey: "id_produk" });
   };
 
   return Product;

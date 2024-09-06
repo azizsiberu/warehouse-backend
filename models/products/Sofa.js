@@ -1,4 +1,3 @@
-// path: models/Sofa.js
 module.exports = (sequelize, DataTypes) => {
   const Sofa = sequelize.define(
     "Sofa",
@@ -37,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
         field: "bantal_sandaran", // Nama kolom di database adalah 'bantal_sandaran'
       },
       remote_pockets: {
-        type: DataTypes.BOOLEAN,
+        type: DataTypes.INTEGER,
         field: "kantong_remot", // Nama kolom di database adalah 'kantong_remot'
       },
       puff: {
@@ -45,10 +44,18 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: "sofa", // Nama tabel di database adalah 'sofa'
+      tableName: "sofa",
       timestamps: false,
     }
   );
+
+  Sofa.associate = (models) => {
+    Sofa.belongsTo(models.Style, { foreignKey: "id_style" });
+    Sofa.belongsTo(models.Fabric, { foreignKey: "id_kain" });
+    Sofa.belongsTo(models.SeatType, { foreignKey: "id_dudukan" });
+    Sofa.belongsTo(models.LegType, { foreignKey: "id_kaki" });
+    Sofa.belongsTo(models.Product, { foreignKey: "id_produk" });
+  };
 
   return Sofa;
 };

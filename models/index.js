@@ -1,7 +1,7 @@
+// path: models/index.js
 const Sequelize = require("sequelize");
 const sequelize = require("../config/db");
 
-// Import semua model dari folder 'products'
 const Product = require("./products/Product")(sequelize, Sequelize.DataTypes);
 const Sofa = require("./products/Sofa")(sequelize, Sequelize.DataTypes);
 const Category = require("./products/Category")(sequelize, Sequelize.DataTypes);
@@ -17,8 +17,8 @@ const ProductType = require("./products/ProductType")(
 const Fabric = require("./products/Fabric")(sequelize, Sequelize.DataTypes);
 const Style = require("./products/Style")(sequelize, Sequelize.DataTypes);
 const SeatType = require("./products/SeatType")(sequelize, Sequelize.DataTypes);
+const LegType = require("./products/LegType")(sequelize, Sequelize.DataTypes); // Pastikan LegType sudah benar
 
-// Membuat objek untuk mengelola semua model
 const db = {
   Product,
   Sofa,
@@ -29,6 +29,7 @@ const db = {
   Fabric,
   Style,
   SeatType,
+  LegType, // Pastikan LegType diinisialisasi di sini
 };
 
 // Definisikan asosiasi setelah semua model diinisialisasi
@@ -38,7 +39,6 @@ Object.keys(db).forEach((modelName) => {
   }
 });
 
-// Hubungkan Sequelize dan ekspor modul
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 

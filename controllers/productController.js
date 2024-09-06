@@ -1,13 +1,29 @@
-// path: controllers/productController.js
-
-const { Product, Category, Vendor, ProductType } = require("../models");
+const {
+  Product,
+  Category,
+  Vendor,
+  ProductType,
+  SubCategory,
+  Sofa,
+  SeatType,
+  Style,
+  Fabric,
+  LegType,
+} = require("../models");
 
 exports.getProductList = async (req, res) => {
   try {
     const productList = await Product.findAll({
-      attributes: ["name", "sku", "product_image", "selling_price"],
+      attributes: [
+        "id_product",
+        "name",
+        "sku",
+        "product_image",
+        "selling_price",
+      ],
       include: [
         { model: Category, attributes: ["category"] },
+        { model: SubCategory, attributes: ["subkategori"] },
         { model: Vendor, attributes: ["vendor_name"] },
         { model: ProductType, attributes: ["type_name"] },
       ],
@@ -22,12 +38,28 @@ exports.getProductList = async (req, res) => {
 exports.getProductDetail = async (req, res) => {
   try {
     const id = req.params.id;
+
+    // Fetch basic product details
     const product = await Product.findOne({
       where: { id_product: id },
       include: [
         { model: Category, attributes: ["category"] },
+        {
+          model: SubCategory,
+          attributes: ["id_subcategory", "subcategory"],
+          as: "SubCategory",
+        },
         { model: Vendor, attributes: ["vendor_name"] },
         { model: ProductType, attributes: ["type_name"] },
+        {
+          model: Sofa,
+          include: [
+            { model: Style, attributes: ["style"] },
+            { model: Fabric, attributes: ["kain"] },
+            { model: SeatType, attributes: ["dudukan"] },
+            { model: LegType, attributes: ["jenis_kaki"] },
+          ],
+        },
       ],
     });
 
@@ -35,7 +67,43 @@ exports.getProductDetail = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.json(product);
+    let productDetail = {
+      id_product: product.id_product,
+      name: product.name,
+      sku: product.sku,
+      product_image: product.product_image,
+      selling_price: product.selling_price,
+      category: product.Category?.category,
+      subcategory: product.SubCategory
+        ? product.SubCategory.subcategory
+        : undefined,
+      vendor: product.Vendor?.vendor_name,
+      product_type: product.ProductType?.type_name,
+    };
+
+    if (product.Sofa) {
+      productDetail = {
+        ...productDetail,
+        style: product.Sofa.Style?.style,
+        fabric: product.Sofa.Fabric?.kain,
+        seat_type: product.Sofa.SeatType?.dudukan,
+        leg_type: product.Sofa.LegType?.jenis_kaki,
+        throw_pillows: product.Sofa.throw_pillows,
+        back_cushions: product.Sofa.back_cushions,
+        remote_pockets: product.Sofa.remote_pockets,
+        puff: product.Sofa.puff,
+      };
+    }
+
+    // Filter out null values
+    const filteredProductDetail = Object.fromEntries(
+      Object.entries(productDetail).filter(
+        ([_, value]) => value !== null && value !== ""
+      )
+    );
+
+    res.json(filteredProductDetail);
+    console.log(filteredProductDetail);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Failed to fetch product details." });

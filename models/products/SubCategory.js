@@ -7,22 +7,26 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-        field: "id_subkategori", // Nama kolom di database adalah 'id_subkategori'
+        field: "id_subkategori", // Sesuaikan dengan kolom di tabel
       },
       subcategory: {
         type: DataTypes.STRING,
-        field: "subkategori", // Nama kolom di database adalah 'subkategori'
+        field: "subkategori",
       },
       category_id: {
         type: DataTypes.INTEGER,
-        field: "id_kategori", // Nama kolom di database adalah 'id_kategori'
+        field: "id_kategori",
       },
     },
     {
-      tableName: "subkategori", // Nama tabel di database adalah 'subkategori'
+      tableName: "subkategori",
       timestamps: false,
     }
   );
+
+  SubCategory.associate = (models) => {
+    SubCategory.belongsTo(models.Category, { foreignKey: "id_kategori" });
+  };
 
   return SubCategory;
 };
