@@ -13,6 +13,20 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         field: "nama",
       },
+      description: {
+        type: DataTypes.STRING,
+        field: "deskripsi",
+      },
+      panjang: {
+        type: DataTypes.FLOAT,
+      },
+      lebar: {
+        type: DataTypes.FLOAT,
+      },
+      tinggi: {
+        type: DataTypes.FLOAT,
+      },
+
       sku: {
         type: DataTypes.STRING,
       },
@@ -44,6 +58,12 @@ module.exports = (sequelize, DataTypes) => {
     {
       tableName: "produk",
       timestamps: false,
+
+      getterMethods: {
+        dimension() {
+          return `${this.panjang} x ${this.lebar} x ${this.tinggi}`;
+        },
+      },
     }
   );
 
