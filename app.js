@@ -3,6 +3,7 @@ require("dotenv").config();
 // Require instrument.js first!
 require("./instrument");
 const productRoutes = require("./routes/productRoutes");
+const attributeRoutes = require("./routes/attributeRoutes")
 
 const express = require("express");
 const Sentry = require("@sentry/node");
@@ -17,6 +18,8 @@ app.get("/", function rootHandler(req, res) {
 });
 
 app.use("/api/products", productRoutes);
+app.use('/api/attributes', attributeRoutes);
+
 
 // Add this after all routes,
 // but before any other error-handling middlewares are defined
