@@ -38,56 +38,63 @@ const getAllProducts = async () => {
 const getProductById = async (id) => {
   const query = `
     SELECT produk.id_produk, 
-       produk.nama, 
-       produk.id_kategori, 
-       produk.id_subkategori, 
-       produk.id_vendor, 
-       produk.old_sku, 
-       produk.estimasi_waktu_produksi, 
-       produk.panjang, 
-       produk.lebar, 
-       produk.tinggi, 
-       produk.deskripsi, 
-       produk.harga_jual, 
-       produk.created_at, 
-       produk.foto_produk, 
-       produk.masa_garansi, 
-       produk.id_jenis, 
-       produk.sku, 
-       kategori.kategori AS kategori, 
-       subkategori.subkategori AS subkategori, 
-       kain.kain AS kain,
-       warna.warna AS warna, 
-       kaki.jenis_kaki AS kaki, 
-       dudukan.dudukan AS dudukan,
-       style.style AS style, 
-       vendor.nama_vendor AS vendor, 
-       vendor.url_logo AS logo_vendor,
-       sofa.id_sofa, 
-       sofa.id_produk AS sofa_id_produk, 
-       sofa.id_style, 
-       sofa.id_kain, 
-       sofa.id_dudukan, 
-       sofa.id_kaki, 
-       sofa.bantal_peluk, 
-       sofa.bantal_sandaran, 
-       sofa.kantong_remot, 
-       sofa.puff
-FROM produk
-LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
-LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
-LEFT JOIN sofa ON produk.id_produk = sofa.id_produk
-LEFT JOIN kain ON sofa.id_kain = kain.id_kain
-LEFT JOIN warna ON warna.id_kain = kain.id_kain
-LEFT JOIN kaki ON sofa.id_kaki = kaki.id_kaki
-LEFT JOIN dudukan ON sofa.id_dudukan = dudukan.id_dudukan
-LEFT JOIN style ON sofa.id_style = style.id_style
-LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
-WHERE produk.id_produk = $1;
-
+           produk.nama, 
+           produk.id_kategori, 
+           produk.id_subkategori, 
+           produk.id_vendor, 
+           produk.old_sku, 
+           produk.estimasi_waktu_produksi, 
+           produk.panjang, 
+           produk.lebar, 
+           produk.tinggi, 
+           produk.deskripsi, 
+           produk.harga_jual, 
+           produk.created_at, 
+           produk.foto_produk, 
+           produk.masa_garansi, 
+           produk.id_jenis, 
+           produk.sku, 
+           kategori.kategori AS kategori, 
+           subkategori.subkategori AS subkategori, 
+           kain.kain AS kain,
+           warna.warna AS warna, 
+           kaki.jenis_kaki AS kaki, 
+           dudukan.dudukan AS dudukan,
+           style.style AS style, 
+           vendor.nama_vendor AS vendor, 
+           vendor.url_logo AS logo_vendor,
+           sofa.id_sofa, 
+           sofa.id_produk AS sofa_id_produk, 
+           sofa.id_style, 
+           sofa.id_kain, 
+           sofa.id_dudukan, 
+           sofa.id_kaki, 
+           sofa.bantal_peluk, 
+           sofa.bantal_sandaran, 
+           sofa.kantong_remot, 
+           sofa.puff
+    FROM produk
+    LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
+    LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
+    LEFT JOIN sofa ON produk.id_produk = sofa.id_produk
+    LEFT JOIN kain ON sofa.id_kain = kain.id_kain
+    LEFT JOIN warna ON warna.id_kain = kain.id_kain
+    LEFT JOIN kaki ON sofa.id_kaki = kaki.id_kaki
+    LEFT JOIN dudukan ON sofa.id_dudukan = dudukan.id_dudukan
+    LEFT JOIN style ON sofa.id_style = style.id_style
+    LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
+    WHERE produk.id_produk = $1;
   `;
   const { rows } = await pool.query(query, [id]);
-  return rows[0];
+
+  // Memfilter properti yang null
+  const filteredResult = Object.fromEntries(
+    Object.entries(rows[0]).filter(
+      ([_, value]) => value !== null && value !== 0
+    )
+  );
+
+  return filteredResult;
 };
 
 // Fungsi untuk memperbarui produk
