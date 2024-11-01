@@ -5,6 +5,7 @@ require("./instrument");
 const productRoutes = require("./routes/productRoutes");
 const attributeRoutes = require("./routes/attributeRoutes");
 const authRoutes = require("./routes/authRoutes");
+const warehouseRoutes = require("./routes/warehouseRoutes");
 
 const express = require("express");
 const Sentry = require("@sentry/node");
@@ -19,6 +20,7 @@ app.use(express.json());
 // Lindungi rute produk dan atribut
 app.use("/api/products", authMiddleware, productRoutes);
 app.use("/api/attributes", authMiddleware, attributeRoutes);
+app.use("/api/warehouses", authMiddleware, warehouseRoutes);
 
 app.use("/api/auth", authRoutes);
 

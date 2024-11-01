@@ -23,12 +23,13 @@ const getAllProducts = async () => {
        produk.sku, 
            kategori.kategori AS kategori, 
            subkategori.subkategori AS subkategori, 
-           vendor.nama_vendor AS vendor
+           vendor.nama_vendor AS vendor,
+           jenis_produk.jenis_produk AS jenis_produk
     FROM produk
     JOIN kategori ON produk.id_kategori = kategori.id_kategori
     JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
-    
     JOIN vendor ON produk.id_vendor = vendor.id_vendor
+    JOIN jenis_produk ON produk.id_jenis = jenis_produk.id_jenis
   `;
   const { rows } = await pool.query(query);
   return rows;
