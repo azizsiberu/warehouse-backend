@@ -6,6 +6,7 @@ const productRoutes = require("./routes/productRoutes");
 const attributeRoutes = require("./routes/attributeRoutes");
 const authRoutes = require("./routes/authRoutes");
 const warehouseRoutes = require("./routes/warehouseRoutes");
+const incomingStockRoutes = require("./routes/incomingStockRoutes");
 
 const express = require("express");
 const Sentry = require("@sentry/node");
@@ -21,6 +22,7 @@ app.use(express.json());
 app.use("/api/products", authMiddleware, productRoutes);
 app.use("/api/attributes", authMiddleware, attributeRoutes);
 app.use("/api/warehouses", authMiddleware, warehouseRoutes);
+app.use("/api/incoming-stocks", authMiddleware, incomingStockRoutes);
 
 app.use("/api/auth", authRoutes);
 
