@@ -7,6 +7,13 @@ const attributeRoutes = require("./routes/attributeRoutes");
 const authRoutes = require("./routes/authRoutes");
 const warehouseRoutes = require("./routes/warehouseRoutes");
 const incomingStockRoutes = require("./routes/incomingStockRoutes");
+const outgoingStockRoutes = require("./routes/outgoingStockRoutes");
+const finalStockRoutes = require("./routes/finalStockRoutes");
+const customerRoutes = require("./routes/customerRoutes");
+
+const ekspedisiRekananRoutes = require("./routes/ekspedisiRekananRoutes");
+const teamGudangRoutes = require("./routes/teamGudangRoutes");
+const kendaraanRoutes = require("./routes/kendaraanRoutes");
 
 const express = require("express");
 const Sentry = require("@sentry/node");
@@ -23,6 +30,13 @@ app.use("/api/products", authMiddleware, productRoutes);
 app.use("/api/attributes", authMiddleware, attributeRoutes);
 app.use("/api/warehouses", authMiddleware, warehouseRoutes);
 app.use("/api/incoming-stocks", authMiddleware, incomingStockRoutes);
+app.use("/api/outgoing-stocks", authMiddleware, outgoingStockRoutes);
+app.use("/api/final-stocks", authMiddleware, finalStockRoutes);
+app.use("/api/customers", authMiddleware, customerRoutes);
+
+app.use("/api/ekspedisi-rekanan", authMiddleware, ekspedisiRekananRoutes);
+app.use("/api/team-gudang", authMiddleware, teamGudangRoutes);
+app.use("/api/kendaraan", authMiddleware, kendaraanRoutes);
 
 app.use("/api/auth", authRoutes);
 

@@ -1,9 +1,9 @@
 // models/Warehouse.js
-const db = require("../config/db");
+const pool = require("../config/db");
 
 const Warehouse = {
   async getAllWarehouses() {
-    const result = await db.query("SELECT id, lokasi FROM warehouse");
+    const result = await pool.query("SELECT id, lokasi FROM warehouse");
     return result.rows;
   },
 };

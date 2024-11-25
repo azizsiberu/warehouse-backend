@@ -1,102 +1,94 @@
 // path: controllers/incomingStockController.js
 const IncomingStock = require("../models/IncomingStock");
+const FinalStock = require("../models/FinalStock");
+const pool = require("../config/db");
 
 const addIncomingStock = async (req, res) => {
-  const {
-    id_produk,
-    id_warna,
-    id_finishing,
-    is_custom,
-    is_raw_material,
-    jumlah,
-    id_user,
-    id_lokasi,
-    additionalOptions,
-  } = req.body;
+  const products = req.body;
 
-  console.log("Request body received:", req.body); // Logging seluruh data yang diterima dari request
-
-  // Check for missing fields
-  const missingFields = {
-    id_produk: !id_produk ? "Field 'id_produk' is required" : undefined,
-    jumlah: !jumlah ? "Field 'jumlah' is required" : undefined,
-    id_user: !id_user ? "Field 'id_user' is required" : undefined,
-    id_lokasi: !id_lokasi ? "Field 'id_lokasi' is required" : undefined,
-  };
-
-  // Filter out undefined values
-  const missingFieldsFiltered = Object.entries(missingFields).reduce(
-    (acc, [key, value]) => {
-      if (value) acc[key] = value;
-      return acc;
-    },
-    {}
-  );
-
-  // Jika ada field yang tidak lengkap, kirimkan error dengan detail spesifik
-  if (Object.keys(missingFieldsFiltered).length > 0) {
-    console.log("Data yang diperlukan tidak lengkap:", missingFieldsFiltered); // Logging field yang hilang
-    return res.status(400).json({
-      message: "Data yang diperlukan tidak lengkap",
-      missingFields: missingFieldsFiltered,
-    });
+  // Validasi payload utama
+  if (!Array.isArray(products) || products.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "Data produk tidak valid atau kosong" });
   }
 
+  // Validasi setiap produk untuk id_produk, jumlah, id_lokasi, id_user
+  for (const product of products) {
+    if (
+      !product.id_produk ||
+      !product.jumlah ||
+      !product.id_lokasi ||
+      !product.id_user
+    ) {
+      return res.status(400).json({
+        message:
+          "Setiap produk harus memiliki id_produk, jumlah, id_lokasi, dan id_user",
+      });
+    }
+  }
+
+  const client = await pool.connect();
+
   try {
-    console.log(
-      "Attempting to add incoming stock with the following details:",
-      {
-        id_produk,
-        id_warna,
-        id_finishing,
-        is_custom,
-        is_raw_material,
-        jumlah,
-        id_user,
-        id_lokasi,
+    await client.query("BEGIN"); // Memulai transaksi
+
+    // 1. Tambahkan Incoming Stock
+    const productsWithIds = await IncomingStock.addIncomingStock(
+      products,
+      client
+    );
+
+    // 2. Update Final Stock untuk setiap produk
+    for (const product of productsWithIds) {
+      const stockData = {
+        id_produk: product.id_produk,
+        id_warna: product.id_warna || null,
+        id_finishing: product.id_finishing || null,
+        id_lokasi: product.id_lokasi,
+        stok_tersedia: product.jumlah,
+        is_custom: product.is_custom || false,
+        is_raw_material: product.is_raw_material || false,
+        ukuran: product.ukuran || null,
+        id_kain: product.id_kain || null,
+        id_kaki: product.id_kaki || null,
+        id_dudukan: product.id_dudukan || null,
+        bantal_peluk: product.bantal_peluk || null,
+        bantal_sandaran: product.bantal_sandaran || null,
+        kantong_remot: product.kantong_remot || null,
+      };
+
+      // Cek dan update final stock menggunakan client transaksi
+      const existingStock = await FinalStock.findOrCreateStock(
+        stockData,
+        client
+      );
+      if (existingStock) {
+        await FinalStock.updateStockQuantity(
+          existingStock.id,
+          product.jumlah,
+          client
+        );
       }
-    );
-
-    const incoming_stock_id = await IncomingStock.addIncomingStock({
-      id_produk,
-      id_warna,
-      id_finishing,
-      is_custom,
-      is_raw_material,
-      jumlah,
-      id_user,
-      id_lokasi,
-    });
-
-    console.log(
-      "Incoming stock added successfully with ID:",
-      incoming_stock_id
-    );
-
-    if (is_custom && additionalOptions && additionalOptions.length > 0) {
-      console.log(
-        "Adding custom stock options for incoming stock ID:",
-        incoming_stock_id,
-        "with options:",
-        additionalOptions
-      );
-      await IncomingStock.addStockCustom(incoming_stock_id, additionalOptions);
-      console.log(
-        "Custom stock options added successfully for incoming stock ID:",
-        incoming_stock_id
-      );
     }
 
-    res.status(201).json({ message: "Stok masuk berhasil ditambahkan" });
+    await client.query("COMMIT"); // Commit transaksi jika semua berhasil
+
+    res.status(201).json({
+      message: "Stok masuk dan final stock berhasil diperbarui",
+      incomingStockIds: productsWithIds.map(
+        (product) => product.incoming_stock_id
+      ),
+    });
   } catch (error) {
-    console.error("Error adding incoming stock:", {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-    }); // Menggunakan console.error untuk detail error yang lebih lengkap
-    res
-      .status(500)
-      .json({ message: "Gagal menambahkan stok masuk", error: error.message });
+    await client.query("ROLLBACK"); // Rollback transaksi jika terjadi kesalahan
+    console.error("Error updating final stock:", error.message);
+    res.status(500).json({
+      message: "Gagal memperbarui final stock",
+      error: error.message,
+    });
+  } finally {
+    client.release(); // Pastikan client dikembalikan ke pool
   }
 };
 
