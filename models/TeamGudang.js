@@ -29,6 +29,24 @@ class TeamGudang {
       throw new Error("Failed to create team_gudang entry");
     }
   }
+  static async processTeamMember({ id, nama }, jabatan = null, client) {
+    if (id) {
+      const query = `
+      SELECT id FROM team_gudang WHERE id = $1 AND is_active = true
+    `;
+      const { rows } = await client.query(query, [id]);
+      if (rows.length === 0) throw new Error("Team member tidak valid.");
+      return id;
+    } else {
+      const query = `
+      INSERT INTO team_gudang (nama, jabatan, is_active)
+      VALUES ($1, $2, true)
+      RETURNING id
+    `;
+      const { rows } = await client.query(query, [nama, jabatan]);
+      return rows[0].id;
+    }
+  }
 }
 
 module.exports = TeamGudang;
