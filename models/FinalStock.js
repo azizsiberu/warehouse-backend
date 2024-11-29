@@ -280,6 +280,68 @@ const FinalStock = {
     const result = await pool.query(query, queryParams);
     return result.rows;
   },
+
+  async reduceStockQuantity(stockId, quantityToReduce, client) {
+    if (quantityToReduce <= 0) {
+      throw new Error("Jumlah pengurangan harus lebih besar dari 0.");
+    }
+
+    console.log(
+      `Reducing stock for final_stock ID ${stockId} by ${quantityToReduce}`
+    );
+
+    const checkQuery = `
+      SELECT stok_tersedia FROM final_stock WHERE id = $1
+    `;
+    const checkResult = await (client || pool).query(checkQuery, [stockId]);
+
+    if (checkResult.rows.length === 0) {
+      throw new Error(`Final stock dengan ID ${stockId} tidak ditemukan.`);
+    }
+
+    const availableStock = checkResult.rows[0].stok_tersedia;
+    if (availableStock < quantityToReduce) {
+      throw new Error(
+        `Stok tidak mencukupi untuk ID ${stockId}. Tersedia: ${availableStock}, Dibutuhkan: ${quantityToReduce}`
+      );
+    }
+
+    const updateQuery = `
+      UPDATE final_stock
+      SET stok_tersedia = stok_tersedia - $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING stok_tersedia
+    `;
+    const updateResult = await (client || pool).query(updateQuery, [
+      quantityToReduce,
+      stockId,
+    ]);
+
+    console.log(
+      `Stock reduced successfully. Remaining stock: ${updateResult.rows[0].stok_tersedia}`
+    );
+    return updateResult.rows[0].stok_tersedia;
+  },
+
+  async findById(stockId, client) {
+    const query = `
+      SELECT id, id_produk, id_warna, id_finishing, id_lokasi, stok_tersedia, is_custom,
+             is_raw_material, ukuran, id_kain, id_kaki, id_dudukan, bantal_peluk,
+             bantal_sandaran, kantong_remot, created_at, updated_at
+      FROM final_stock WHERE id = $1
+    `;
+    const result = await (client || pool).query(query, [stockId]);
+
+    if (result.rows.length === 0) {
+      throw new Error(`Final stock dengan ID ${stockId} tidak ditemukan.`);
+    }
+
+    console.log(
+      `Final stock details retrieved for ID ${stockId}:`,
+      result.rows[0]
+    );
+    return result.rows[0];
+  },
 };
 
 module.exports = FinalStock;

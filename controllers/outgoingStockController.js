@@ -1,149 +1,119 @@
 // path: controllers/outgoingStockController.js
 
+const Kendaraan = require("../models/Kendaraan");
+const TeamGudang = require("../models/TeamGudang");
+const FinalStock = require("../models/FinalStock");
 const OutgoingStock = require("../models/OutgoingStock");
 const pool = require("../config/db");
 
 const outgoingStockController = {
   async createOutgoingStock(req, res) {
     const client = await pool.connect();
-
     try {
       const payload = req.body;
 
       console.log("=== Incoming Request: Create Outgoing Stock ===");
-      console.log("Incoming Payload:", JSON.stringify(payload, null, 2));
+      console.log("Payload received:", JSON.stringify(payload, null, 2));
 
-      // Validasi payload
       if (!Array.isArray(payload) || payload.length === 0) {
-        console.error(
-          "Validation Error: Invalid payload format or empty payload."
-        );
         throw new Error("Payload tidak valid.");
-      }
-
-      for (const data of payload) {
-        if (!data.id_final_stock || !data.jumlah || !data.id_user) {
-          console.error(
-            "Validation Error: Missing required fields in payload."
-          );
-          throw new Error("Payload item memiliki properti yang tidak valid.");
-        }
       }
 
       await client.query("BEGIN");
 
-      for (const data of payload) {
-        console.log("Processing Payload Item:", data);
-
-        // 1. Kurangi stok final
-        console.log("Reducing stock for id_final_stock:", data.id_final_stock);
-        const updateStockQuery = `
-          UPDATE final_stock
-          SET stok_tersedia = stok_tersedia - $1
-          WHERE id = $2 AND stok_tersedia >= $1
-          RETURNING stok_tersedia
-        `;
-        const updateStockResult = await client.query(updateStockQuery, [
-          data.jumlah,
-          data.id_final_stock,
-        ]);
-
-        if (updateStockResult.rows.length === 0) {
-          console.error(
-            `Stock Error: Insufficient stock for ID ${data.id_final_stock}.`
+      for (const item of payload) {
+        // 1. Proses driver
+        let driverId = item.id_kurir || null;
+        if (!driverId && item.driver?.nama) {
+          console.log(`Processing driver: ${item.driver.nama}`);
+          driverId = await TeamGudang.processTeamMember(
+            { nama: item.driver.nama },
+            "Driver",
+            client
           );
-          throw new Error(
-            `Stok tidak mencukupi untuk ID ${data.id_final_stock}.`
-          );
+          console.log(`Driver processed successfully. ID: ${driverId}`);
         }
 
-        console.log(
-          "Stock successfully reduced. Remaining stock:",
-          updateStockResult.rows[0].stok_tersedia
-        );
-
-        // 2. Tambahkan data ke tabel outgoing_stock
-        console.log("Inserting data into outgoing_stock...");
-        const finalStockQuery = `
-          SELECT id_produk, id_warna, id_finishing, is_custom, is_raw_material, ukuran,
-                 id_kain, id_kaki, id_dudukan, bantal_peluk, bantal_sandaran, kantong_remot
-          FROM final_stock
-          WHERE id = $1
-        `;
-        const finalStockResult = await client.query(finalStockQuery, [
-          data.id_final_stock,
-        ]);
-
-        if (finalStockResult.rows.length === 0) {
-          console.error(
-            `Final stock not found for id_final_stock: ${data.id_final_stock}`
-          );
-          throw new Error("Final stock tidak ditemukan.");
-        }
-
-        const finalStockData = finalStockResult.rows[0];
-
-        const outgoingStockQuery = `
-          INSERT INTO outgoing_stock (
-            id_produk, id_warna, id_finishing, id_lokasi, jumlah, is_custom,
-            is_raw_material, ukuran, id_kain, id_kaki, id_dudukan, bantal_peluk,
-            bantal_sandaran, kantong_remot, id_user, id_customer, id_kurir, id_kendaraan, id_ekspedisi, created_at
-          )
-          VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW()
-          ) RETURNING id
-        `;
-        const outgoingStockResult = await client.query(outgoingStockQuery, [
-          finalStockData.id_produk,
-          finalStockData.id_warna,
-          finalStockData.id_finishing,
-          data.id_lokasi,
-          data.jumlah,
-          finalStockData.is_custom,
-          finalStockData.is_raw_material,
-          finalStockData.ukuran,
-          finalStockData.id_kain,
-          finalStockData.id_kaki,
-          finalStockData.id_dudukan,
-          finalStockData.bantal_peluk,
-          finalStockData.bantal_sandaran,
-          finalStockData.kantong_remot,
-          data.id_user,
-          data.id_customer,
-          data.id_kurir,
-          data.id_kendaraan,
-          data.id_ekspedisi,
-        ]);
-
-        const outgoingStockId = outgoingStockResult.rows[0].id;
-        console.log(
-          "Outgoing stock successfully inserted. ID:",
-          outgoingStockId
-        );
-
-        // 3. Tambahkan data partner jika ada
-        if (data.partners && data.partners.length > 0) {
-          console.log(
-            "Inserting partner data for outgoing stock ID:",
-            outgoingStockId
-          );
-          const partnerQuery = `
-            INSERT INTO outgoing_stock_partners (id_outgoing_stock, id_partner, created_at)
-            VALUES ($1, $2, NOW())
-          `;
-          for (const partner of data.partners) {
-            if (!partner.id) {
-              console.error("Partner ID is missing:", partner);
-              throw new Error("Partner harus memiliki ID.");
+        // 2. Proses partner
+        const partnerIds = [];
+        if (item.partners?.length > 0) {
+          for (const partner of item.partners) {
+            let partnerId = partner.id || null;
+            if (!partnerId && partner.nama) {
+              console.log(`Processing partner: ${partner.nama}`);
+              partnerId = await TeamGudang.processTeamMember(
+                { nama: partner.nama },
+                "Partner",
+                client
+              );
+              console.log(`Partner processed successfully. ID: ${partnerId}`);
             }
-            console.log("Adding partner with ID:", partner.id);
-            await client.query(partnerQuery, [outgoingStockId, partner.id]);
+            partnerIds.push(partnerId);
           }
+        }
+
+        // 3. Proses kendaraan
+        let vehicleId = item.id_kendaraan || null;
+        if (!vehicleId && item.vehicle) {
+          console.log(
+            `Processing vehicle: Nomor Polisi ${item.vehicle.nomor_polisi}`
+          );
+          vehicleId = await Kendaraan.processVehicle(
+            {
+              nomor_polisi: item.vehicle.nomor_polisi,
+              jenis_kendaraan: item.vehicle.jenis_kendaraan,
+            },
+            client
+          );
+          console.log(`Vehicle processed successfully. ID: ${vehicleId}`);
+        }
+
+        // 4. Kurangi stok
+        console.log(
+          `Reducing stock for final_stock ID ${item.id_final_stock} by ${item.jumlah}`
+        );
+        await FinalStock.reduceStockQuantity(
+          item.id_final_stock,
+          item.jumlah,
+          client
+        );
+
+        // 5. Ambil data final_stock
+        console.log(
+          `Fetching final_stock details for ID ${item.id_final_stock}`
+        );
+        const finalStockData = await FinalStock.findById(
+          item.id_final_stock,
+          client
+        );
+
+        // 6. Simpan ke outgoing_stock
+        const outgoingStock = await OutgoingStock.addOutgoingStock(
+          {
+            ...finalStockData,
+            ...item,
+            id_kurir: driverId,
+            id_kendaraan: vehicleId,
+          },
+          client
+        );
+
+        console.log(
+          `Outgoing stock ID ${outgoingStock.id} added successfully.`
+        );
+
+        // 7. Tambahkan partner ke outgoing_stock_partners
+        for (const partnerId of partnerIds) {
+          await OutgoingStock.addOutgoingPartner(
+            outgoingStock.id,
+            partnerId,
+            client
+          );
+          console.log(`Partner with ID ${partnerId} added successfully.`);
         }
       }
 
       await client.query("COMMIT");
-      console.log("=== Outgoing Stock Process Completed Successfully ===");
       res.status(201).json({ message: "Pengiriman berhasil disimpan." });
     } catch (error) {
       await client.query("ROLLBACK");
