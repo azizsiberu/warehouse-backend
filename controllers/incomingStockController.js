@@ -10,22 +10,22 @@ const addIncomingStock = async (req, res) => {
   if (!Array.isArray(products) || products.length === 0) {
     return res
       .status(400)
-      .json({ message: "Data produk tidak valid atau kosong" });
+      .json({ message: "Data produk tidak valid atau kosong." });
   }
 
-  // Validasi setiap produk untuk id_produk, jumlah, id_lokasi, id_user
-  for (const product of products) {
-    if (
+  // Validasi setiap produk
+  const invalidProduct = products.some(
+    (product) =>
       !product.id_produk ||
-      !product.jumlah ||
+      typeof product.jumlah !== "number" ||
       !product.id_lokasi ||
       !product.id_user
-    ) {
-      return res.status(400).json({
-        message:
-          "Setiap produk harus memiliki id_produk, jumlah, id_lokasi, dan id_user",
-      });
-    }
+  );
+  if (invalidProduct) {
+    return res.status(400).json({
+      message:
+        "Setiap produk harus memiliki id_produk, jumlah (number), id_lokasi, dan id_user.",
+    });
   }
 
   const client = await pool.connect();
@@ -39,7 +39,7 @@ const addIncomingStock = async (req, res) => {
       client
     );
 
-    // 2. Update Final Stock untuk setiap produk
+    // 2. Update atau Tambahkan ke Final Stock untuk setiap produk
     for (const product of productsWithIds) {
       const stockData = {
         id_produk: product.id_produk,
@@ -58,24 +58,14 @@ const addIncomingStock = async (req, res) => {
         kantong_remot: product.kantong_remot || null,
       };
 
-      // Cek dan update final stock menggunakan client transaksi
-      const existingStock = await FinalStock.findOrCreateStock(
-        stockData,
-        client
-      );
-      if (existingStock) {
-        await FinalStock.updateStockQuantity(
-          existingStock.id,
-          product.jumlah,
-          client
-        );
-      }
+      // Gunakan upsertStock untuk menambah atau memperbarui stok akhir
+      await FinalStock.upsertStock(stockData, client);
     }
 
     await client.query("COMMIT"); // Commit transaksi jika semua berhasil
 
     res.status(201).json({
-      message: "Stok masuk dan final stock berhasil diperbarui",
+      message: "Stok masuk dan final stock berhasil diperbarui.",
       incomingStockIds: productsWithIds.map(
         (product) => product.incoming_stock_id
       ),
@@ -84,7 +74,7 @@ const addIncomingStock = async (req, res) => {
     await client.query("ROLLBACK"); // Rollback transaksi jika terjadi kesalahan
     console.error("Error updating final stock:", error.message);
     res.status(500).json({
-      message: "Gagal memperbarui final stock",
+      message: "Gagal memperbarui final stock.",
       error: error.message,
     });
   } finally {

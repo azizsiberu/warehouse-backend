@@ -139,21 +139,22 @@ const FinalStock = {
   // Fungsi untuk mengambil semua stok
   async getAvailableStock({ id_lokasi }) {
     const query = `
-      SELECT 
-        produk.id_produk, 
-        produk.nama, 
-        produk.foto_produk,
-        kategori.kategori, 
-        subkategori.subkategori, 
-        vendor.nama_vendor AS vendor
-      FROM final_stock
-      JOIN produk ON final_stock.id_produk = produk.id_produk
-      LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
-      LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
-      LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
-      WHERE final_stock.id_lokasi = $1
-      GROUP BY produk.id_produk, kategori.kategori, subkategori.subkategori, vendor.nama_vendor
-    `;
+    SELECT 
+      produk.id_produk, 
+      produk.nama, 
+      produk.foto_produk,
+      kategori.kategori, 
+      subkategori.subkategori, 
+      vendor.nama_vendor AS vendor
+    FROM final_stock
+    JOIN produk ON final_stock.id_produk = produk.id_produk
+    LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
+    LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
+    LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
+    WHERE final_stock.id_lokasi = $1
+      AND final_stock.stok_tersedia > 0 -- Tambahkan kondisi ini untuk hanya membaca stok tersedia
+    GROUP BY produk.id_produk, kategori.kategori, subkategori.subkategori, vendor.nama_vendor
+  `;
     const values = [id_lokasi];
 
     const result = await pool.query(query, values);
@@ -197,7 +198,8 @@ const FinalStock = {
         sofa.bantal_peluk AS sofa_bantal_peluk,
         sofa.bantal_sandaran AS sofa_bantal_sandaran,
         sofa.kantong_remot AS sofa_kantong_remot,
-        sofa.puff AS sofa_puff
+        sofa.puff AS sofa_puff,
+        warehouse.lokasi AS warehouse_lokasi
       FROM final_stock
       JOIN produk ON final_stock.id_produk = produk.id_produk
       LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
@@ -214,6 +216,8 @@ const FinalStock = {
       LEFT JOIN kaki AS sofa_kaki ON sofa.id_kaki = sofa_kaki.id_kaki
       LEFT JOIN dudukan AS sofa_dudukan ON sofa.id_dudukan = sofa_dudukan.id_dudukan
       LEFT JOIN style ON sofa.id_style = style.id_style
+      LEFT JOIN warehouse ON final_stock.id_lokasi = warehouse.id 
+          WHERE final_stock.stok_tersedia > 0 
     `;
     const result = await pool.query(query);
     return result.rows;
@@ -274,7 +278,7 @@ const FinalStock = {
     LEFT JOIN kaki AS sofa_kaki ON sofa.id_kaki = sofa_kaki.id_kaki
     LEFT JOIN dudukan AS sofa_dudukan ON sofa.id_dudukan = sofa_dudukan.id_dudukan
     LEFT JOIN style ON sofa.id_style = style.id_style
-    WHERE final_stock.id_lokasi = $1 AND final_stock.id_produk = $2
+    WHERE final_stock.id_lokasi = $1 AND final_stock.id_produk = $2 AND final_stock.stok_tersedia > 0
   `;
 
     const result = await pool.query(query, queryParams);
@@ -341,6 +345,112 @@ const FinalStock = {
       result.rows[0]
     );
     return result.rows[0];
+  },
+
+  async upsertStock(stockData, client) {
+    const {
+      id_produk,
+      id_warna,
+      id_finishing,
+      id_lokasi,
+      stok_tersedia,
+      is_custom,
+      is_raw_material,
+      ukuran,
+      id_kain,
+      id_kaki,
+      id_dudukan,
+      bantal_peluk,
+      bantal_sandaran,
+      kantong_remot,
+    } = stockData;
+
+    if (!id_produk || !id_lokasi) {
+      throw new Error("id_produk dan id_lokasi tidak boleh NULL");
+    }
+
+    const query = `
+    SELECT id, stok_tersedia FROM final_stock
+    WHERE id_produk = $1 AND id_warna IS NOT DISTINCT FROM $2
+      AND id_finishing IS NOT DISTINCT FROM $3
+      AND id_lokasi = $4 AND is_custom = $5
+      AND is_raw_material = $6
+      AND ukuran IS NOT DISTINCT FROM $7
+      AND id_kain IS NOT DISTINCT FROM $8
+      AND id_kaki IS NOT DISTINCT FROM $9
+      AND id_dudukan IS NOT DISTINCT FROM $10
+      AND bantal_peluk IS NOT DISTINCT FROM $11
+      AND bantal_sandaran IS NOT DISTINCT FROM $12
+      AND kantong_remot IS NOT DISTINCT FROM $13
+  `;
+    const values = [
+      id_produk,
+      id_warna,
+      id_finishing,
+      id_lokasi,
+      is_custom,
+      is_raw_material,
+      ukuran,
+      id_kain,
+      id_kaki,
+      id_dudukan,
+      bantal_peluk,
+      bantal_sandaran,
+      kantong_remot,
+    ];
+
+    // Cari data yang cocok di final_stock
+    const result = await (client || pool).query(query, values);
+
+    if (result.rows.length > 0) {
+      // Jika ditemukan, update stok_tersedia
+      const stockId = result.rows[0].id;
+      const newStock = result.rows[0].stok_tersedia + stok_tersedia;
+
+      const updateQuery = `
+      UPDATE final_stock
+      SET stok_tersedia = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `;
+      const updateValues = [newStock, stockId];
+      const updateResult = await (client || pool).query(
+        updateQuery,
+        updateValues
+      );
+      return updateResult.rows[0];
+    } else {
+      // Jika tidak ditemukan, tambahkan baris baru
+      const insertQuery = `
+      INSERT INTO final_stock (id_produk, id_warna, id_finishing, id_lokasi, stok_tersedia,
+        is_custom, is_raw_material, ukuran, id_kain, id_kaki, id_dudukan,
+        bantal_peluk, bantal_sandaran, kantong_remot, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP)
+      RETURNING *
+    `;
+      const insertValues = [
+        id_produk,
+        id_warna,
+        id_finishing,
+        id_lokasi,
+        stok_tersedia,
+        is_custom,
+        is_raw_material,
+        ukuran,
+        id_kain,
+        id_kaki,
+        id_dudukan,
+        bantal_peluk,
+        bantal_sandaran,
+        kantong_remot,
+      ];
+
+      const insertResult = await (client || pool).query(
+        insertQuery,
+        insertValues
+      );
+      return insertResult.rows[0];
+    }
   },
 };
 

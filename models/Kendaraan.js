@@ -57,6 +57,45 @@ class Kendaraan {
     }
     return rows[0].id;
   }
+
+  // Menonaktifkan kendaraan berdasarkan ID (soft delete)
+  static async deactivateById(id) {
+    const query = `
+    UPDATE kendaraan SET is_active = false WHERE id = $1 RETURNING *
+  `;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0];
+  }
+
+  // Memperbarui data kendaraan
+  static async updateById(id, { nomor_polisi, jenis_kendaraan }) {
+    const query = `
+    UPDATE kendaraan 
+    SET nomor_polisi = $1, jenis_kendaraan = $2 
+    WHERE id = $3 AND is_active = true
+    RETURNING *
+  `;
+    const values = [nomor_polisi, jenis_kendaraan, id];
+    const { rows } = await pool.query(query, values);
+    return rows[0];
+  }
+
+  // Mendapatkan jumlah kendaraan aktif
+  static async countActive() {
+    const query =
+      "SELECT COUNT(*) as count FROM kendaraan WHERE is_active = true";
+    const { rows } = await pool.query(query);
+    return parseInt(rows[0].count, 10);
+  }
+
+  // Mencari kendaraan berdasarkan jenis
+  static async findByType(jenis_kendaraan) {
+    const query = `
+    SELECT * FROM kendaraan WHERE jenis_kendaraan = $1 AND is_active = true
+  `;
+    const { rows } = await pool.query(query, [jenis_kendaraan]);
+    return rows;
+  }
 }
 
 module.exports = Kendaraan;

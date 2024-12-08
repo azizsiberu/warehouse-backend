@@ -73,7 +73,12 @@ const getProductById = async (id) => {
            sofa.bantal_peluk, 
            sofa.bantal_sandaran, 
            sofa.kantong_remot, 
-           sofa.puff
+           sofa.puff,
+           shipping.packing_panjang,
+            shipping.packing_lebar,
+            shipping.packing_tinggi,
+            shipping.berat_barang,
+            shipping.jumlah_coli
     FROM produk
     LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
     LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
@@ -84,6 +89,7 @@ const getProductById = async (id) => {
     LEFT JOIN dudukan ON sofa.id_dudukan = dudukan.id_dudukan
     LEFT JOIN style ON sofa.id_style = style.id_style
     LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
+    LEFT JOIN product_shipping_details AS shipping ON produk.id_produk = shipping.id_produk
     WHERE produk.id_produk = $1;
   `;
   const { rows } = await pool.query(query, [id]);
@@ -138,8 +144,108 @@ const updateProduct = async (id, productData) => {
   return rows[0];
 };
 
+// Fungsi untuk menambahkan data shipping details
+const addShippingDetails = async (shippingData) => {
+  const {
+    id_produk,
+    packing_panjang,
+    packing_lebar,
+    packing_tinggi,
+    berat_barang,
+    jumlah_coli,
+  } = shippingData;
+
+  const query = `
+    INSERT INTO product_shipping_details (
+      id_produk,
+      packing_panjang,
+      packing_lebar,
+      packing_tinggi,
+      berat_barang,
+      jumlah_coli
+    ) VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *
+  `;
+
+  const values = [
+    id_produk,
+    packing_panjang,
+    packing_lebar,
+    packing_tinggi,
+    berat_barang,
+    jumlah_coli,
+  ];
+
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+};
+
+// Fungsi untuk mendapatkan shipping details berdasarkan id_produk
+const getShippingDetailsByProductId = async (id_produk) => {
+  const query = `
+    SELECT * FROM product_shipping_details
+    WHERE id_produk = $1
+  `;
+
+  const { rows } = await pool.query(query, [id_produk]);
+
+  // Kembalikan null jika tidak ada data
+  return rows.length > 0 ? rows[0] : null;
+};
+
+// Fungsi untuk memperbarui shipping details
+const updateShippingDetails = async (id_produk, shippingData) => {
+  const {
+    packing_panjang,
+    packing_lebar,
+    packing_tinggi,
+    berat_barang,
+    jumlah_coli,
+  } = shippingData;
+
+  const query = `
+    UPDATE product_shipping_details
+    SET packing_panjang = $1,
+        packing_lebar = $2,
+        packing_tinggi = $3,
+        berat_barang = $4,
+        jumlah_coli = $5,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id_produk = $6
+    RETURNING *
+  `;
+
+  const values = [
+    packing_panjang,
+    packing_lebar,
+    packing_tinggi,
+    berat_barang,
+    jumlah_coli,
+    id_produk,
+  ];
+
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+};
+
+// Fungsi untuk menghapus shipping details berdasarkan id_produk
+const deleteShippingDetails = async (id_produk) => {
+  const query = `
+    DELETE FROM product_shipping_details
+    WHERE id_produk = $1
+    RETURNING *
+  `;
+
+  const { rows } = await pool.query(query, [id_produk]);
+  return rows[0];
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
   updateProduct,
+  addShippingDetails,
+  getShippingDetailsByProductId,
+  updateShippingDetails,
+  deleteShippingDetails,
 };

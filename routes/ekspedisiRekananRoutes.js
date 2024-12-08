@@ -10,4 +10,10 @@ router.get("/", ekspedisiRekananController.getAll);
 // Route untuk menambahkan data ke tabel ekspedisi_rekanan
 router.post("/", ekspedisiRekananController.create);
 
+// Route untuk memperbarui data ekspedisi rekanan berdasarkan ID
+router.put("/:id", ekspedisiRekananController.update);
+
+// Route untuk menonaktifkan data ekspedisi rekanan berdasarkan ID
+router.delete("/:id", ekspedisiRekananController.deactivate);
+
 module.exports = router;

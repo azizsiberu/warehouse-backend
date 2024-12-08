@@ -2,58 +2,89 @@
 const pool = require("../config/db");
 
 const addIncomingStock = async (products, client) => {
+  if (!Array.isArray(products) || products.length === 0) {
+    throw new Error("Input produk tidak valid atau kosong.");
+  }
+
   console.log(
     "Received products for incoming stock:",
     JSON.stringify(products, null, 2)
   );
 
+  // Validasi setiap produk
+  products.forEach((product, index) => {
+    if (
+      !product.id_produk ||
+      typeof product.jumlah !== "number" ||
+      !product.id_user ||
+      !product.id_lokasi
+    ) {
+      throw new Error(
+        `Produk pada index ${index} tidak valid: ${JSON.stringify(product)}`
+      );
+    }
+  });
+
+  // Membuat query batch insert
   const query = `
     INSERT INTO incoming_stock (
       id_produk, id_warna, id_finishing, is_custom, is_raw_material, jumlah, id_user, id_lokasi,
       ukuran, id_kain, id_kaki, id_dudukan, bantal_peluk, bantal_sandaran, kantong_remot, created_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP)
+    VALUES ${products
+      .map(
+        (_, i) =>
+          `($${i * 15 + 1}, $${i * 15 + 2}, $${i * 15 + 3}, $${i * 15 + 4}, $${
+            i * 15 + 5
+          }, $${i * 15 + 6}, $${i * 15 + 7}, $${i * 15 + 8}, $${i * 15 + 9}, $${
+            i * 15 + 10
+          }, $${i * 15 + 11}, $${i * 15 + 12}, $${i * 15 + 13}, $${
+            i * 15 + 14
+          }, $${i * 15 + 15}, CURRENT_TIMESTAMP)`
+      )
+      .join(", ")}
     RETURNING id;
   `;
 
-  const results = await Promise.all(
-    products.map((product, index) => {
-      const values = [
-        product.id_produk,
-        product.id_warna || null,
-        product.id_finishing || null,
-        product.is_custom || false,
-        product.is_raw_material || false,
-        product.jumlah,
-        product.id_user,
-        product.id_lokasi,
-        product.ukuran || null,
-        product.id_kain || null,
-        product.id_kaki || null,
-        product.id_dudukan || null,
-        product.bantal_peluk || null,
-        product.bantal_sandaran || null,
-        product.kantong_remot || null,
-      ];
+  // Menggabungkan nilai untuk semua produk
+  const values = products.flatMap((product) => [
+    product.id_produk,
+    product.id_warna || null,
+    product.id_finishing || null,
+    product.is_custom || false,
+    product.is_raw_material || false,
+    product.jumlah,
+    product.id_user,
+    product.id_lokasi,
+    product.ukuran || null,
+    product.id_kain || null,
+    product.id_kaki || null,
+    product.id_dudukan || null,
+    product.bantal_peluk || null,
+    product.bantal_sandaran || null,
+    product.kantong_remot || null,
+  ]);
 
-      console.log(
-        `Executing query for product #${index + 1} with values:`,
-        JSON.stringify(values, null, 2)
-      );
+  try {
+    // Eksekusi query
+    const result = await (client || pool).query(query, values);
 
-      // Gunakan `client` jika disediakan, jika tidak, gunakan `pool`
-      return (client || pool).query(query, values);
-    })
-  );
+    // Gabungkan hasil dengan data asli
+    const ids = result.rows.map((row, index) => ({
+      incoming_stock_id: row.id,
+      ...products[index],
+    }));
 
-  const ids = results.map((result, index) => ({
-    incoming_stock_id: result.rows[0].id,
-    ...products[index], // Menggabungkan data produk asli ke hasil yang dikembalikan
-  }));
-
-  console.log("Inserted incoming stock IDs:", JSON.stringify(ids, null, 2));
-
-  return ids;
+    console.log("Inserted incoming stock IDs:", JSON.stringify(ids, null, 2));
+    return ids;
+  } catch (error) {
+    console.error(
+      "Error inserting incoming stock:",
+      error.message,
+      error.stack
+    );
+    throw error;
+  }
 };
 
 module.exports = {

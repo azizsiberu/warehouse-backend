@@ -15,6 +15,8 @@ const ekspedisiRekananRoutes = require("./routes/ekspedisiRekananRoutes");
 const teamGudangRoutes = require("./routes/teamGudangRoutes");
 const kendaraanRoutes = require("./routes/kendaraanRoutes");
 
+const stockOverviewRoutes = require("./routes/stockOverviewRoutes");
+
 const express = require("express");
 const Sentry = require("@sentry/node");
 const cors = require("cors");
@@ -37,6 +39,8 @@ app.use("/api/customers", authMiddleware, customerRoutes);
 app.use("/api/ekspedisi-rekanan", authMiddleware, ekspedisiRekananRoutes);
 app.use("/api/team-gudang", authMiddleware, teamGudangRoutes);
 app.use("/api/kendaraan", authMiddleware, kendaraanRoutes);
+
+app.use("/api/stocks", authMiddleware, stockOverviewRoutes);
 
 app.use("/api/auth", authRoutes);
 
