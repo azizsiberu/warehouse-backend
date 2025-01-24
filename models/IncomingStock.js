@@ -1,8 +1,10 @@
-// path: models/IncomingStock.js
 const pool = require("../config/db");
 
 const addIncomingStock = async (products, client) => {
+  console.log("Starting addIncomingStock...");
+
   if (!Array.isArray(products) || products.length === 0) {
+    console.error("Invalid or empty products array:", products);
     throw new Error("Input produk tidak valid atau kosong.");
   }
 
@@ -19,6 +21,10 @@ const addIncomingStock = async (products, client) => {
       !product.id_user ||
       !product.id_lokasi
     ) {
+      console.error(
+        `Invalid product at index ${index}:`,
+        JSON.stringify(product)
+      );
       throw new Error(
         `Produk pada index ${index} tidak valid: ${JSON.stringify(product)}`
       );
@@ -27,26 +33,30 @@ const addIncomingStock = async (products, client) => {
 
   // Membuat query batch insert
   const query = `
-    INSERT INTO incoming_stock (
-      id_produk, id_warna, id_finishing, is_custom, is_raw_material, jumlah, id_user, id_lokasi,
-      ukuran, id_kain, id_kaki, id_dudukan, bantal_peluk, bantal_sandaran, kantong_remot, created_at
+  INSERT INTO incoming_stock (
+    id_produk, id_warna, id_finishing, is_custom, is_raw_material, jumlah, id_user, id_lokasi,
+    ukuran, id_kain, id_kaki, id_dudukan, bantal_peluk, bantal_sandaran, kantong_remot,
+    is_complete, incomplete_detail, product_status, detail, created_at
+  )
+  VALUES ${products
+    .map(
+      (_, i) =>
+        `($${i * 19 + 1}, $${i * 19 + 2}, $${i * 19 + 3}, $${i * 19 + 4}, $${
+          i * 19 + 5
+        }, $${i * 19 + 6}, 
+        $${i * 19 + 7}, $${i * 19 + 8}, $${i * 19 + 9}, $${i * 19 + 10}, $${
+          i * 19 + 11
+        }, $${i * 19 + 12}, 
+        $${i * 19 + 13}, $${i * 19 + 14}, $${i * 19 + 15}, $${i * 19 + 16}, $${
+          i * 19 + 17
+        }, $${i * 19 + 18}, 
+        $${i * 19 + 19}, CURRENT_TIMESTAMP)`
     )
-    VALUES ${products
-      .map(
-        (_, i) =>
-          `($${i * 15 + 1}, $${i * 15 + 2}, $${i * 15 + 3}, $${i * 15 + 4}, $${
-            i * 15 + 5
-          }, $${i * 15 + 6}, $${i * 15 + 7}, $${i * 15 + 8}, $${i * 15 + 9}, $${
-            i * 15 + 10
-          }, $${i * 15 + 11}, $${i * 15 + 12}, $${i * 15 + 13}, $${
-            i * 15 + 14
-          }, $${i * 15 + 15}, CURRENT_TIMESTAMP)`
-      )
-      .join(", ")}
+    .join(", ")}
     RETURNING id;
-  `;
 
-  // Menggabungkan nilai untuk semua produk
+`;
+
   const values = products.flatMap((product) => [
     product.id_produk,
     product.id_warna || null,
@@ -63,11 +73,25 @@ const addIncomingStock = async (products, client) => {
     product.bantal_peluk || null,
     product.bantal_sandaran || null,
     product.kantong_remot || null,
+    product.isComplete === "Ya"
+      ? true
+      : product.isComplete === "Tidak"
+      ? false
+      : product.isComplete || false,
+    product.incompleteDetail || null,
+    product.productStatus || null,
+    product.detail || null,
   ]);
+
+  console.log("Generated INSERT query:", query);
+  console.log("With values:", values);
 
   try {
     // Eksekusi query
+    console.log("Executing query...");
     const result = await (client || pool).query(query, values);
+
+    console.log("Query executed successfully. Result:", result.rows);
 
     // Gabungkan hasil dengan data asli
     const ids = result.rows.map((row, index) => ({
@@ -75,7 +99,7 @@ const addIncomingStock = async (products, client) => {
       ...products[index],
     }));
 
-    console.log("Inserted incoming stock IDs:", JSON.stringify(ids, null, 2));
+    console.log("Mapped inserted data with IDs:", JSON.stringify(ids, null, 2));
     return ids;
   } catch (error) {
     console.error(

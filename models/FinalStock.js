@@ -363,7 +363,13 @@ const FinalStock = {
       bantal_peluk,
       bantal_sandaran,
       kantong_remot,
+      is_complete,
+      incomplete_detail,
+      product_status,
+      detail,
     } = stockData;
+
+    console.log("Starting upsertStock with data:", stockData);
 
     if (!id_produk || !id_lokasi) {
       throw new Error("id_produk dan id_lokasi tidak boleh NULL");
@@ -382,7 +388,12 @@ const FinalStock = {
       AND bantal_peluk IS NOT DISTINCT FROM $11
       AND bantal_sandaran IS NOT DISTINCT FROM $12
       AND kantong_remot IS NOT DISTINCT FROM $13
+      AND is_complete IS NOT DISTINCT FROM $14
+      AND incomplete_detail IS NOT DISTINCT FROM $15
+      AND product_status IS NOT DISTINCT FROM $16
+      AND detail IS NOT DISTINCT FROM $17
   `;
+
     const values = [
       id_produk,
       id_warna,
@@ -397,37 +408,74 @@ const FinalStock = {
       bantal_peluk,
       bantal_sandaran,
       kantong_remot,
+      is_complete,
+      incomplete_detail,
+      product_status,
+      detail,
     ];
 
-    // Cari data yang cocok di final_stock
+    console.log("Running SELECT query:", query);
+    console.log("With values:", values);
+
     const result = await (client || pool).query(query, values);
+
+    console.log("SELECT query result:", result.rows);
 
     if (result.rows.length > 0) {
       // Jika ditemukan, update stok_tersedia
       const stockId = result.rows[0].id;
       const newStock = result.rows[0].stok_tersedia + stok_tersedia;
 
+      console.log(
+        `Record found. Updating stock ID: ${stockId} with new stock: ${newStock}`
+      );
+
       const updateQuery = `
-      UPDATE final_stock
-      SET stok_tersedia = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-      RETURNING *
-    `;
-      const updateValues = [newStock, stockId];
+ UPDATE final_stock
+SET stok_tersedia = $1,
+    updated_at = CURRENT_TIMESTAMP,
+    is_complete = $2::BOOLEAN,
+    incomplete_detail = $3::TEXT,
+    product_status = $4::TEXT,
+    detail = $5::TEXT
+WHERE id = $6
+RETURNING *;
+
+`;
+
+      const updateValues = [
+        newStock,
+        is_complete,
+        incomplete_detail,
+        product_status,
+        detail,
+        stockId,
+      ];
+
+      console.log("Running UPDATE query:", updateQuery);
+      console.log("With values:", updateValues);
+
       const updateResult = await (client || pool).query(
         updateQuery,
         updateValues
       );
+
+      console.log("UPDATE query result:", updateResult.rows);
+
       return updateResult.rows[0];
     } else {
       // Jika tidak ditemukan, tambahkan baris baru
+      console.log("No matching record found. Inserting new stock data.");
+
       const insertQuery = `
       INSERT INTO final_stock (id_produk, id_warna, id_finishing, id_lokasi, stok_tersedia,
         is_custom, is_raw_material, ukuran, id_kain, id_kaki, id_dudukan,
-        bantal_peluk, bantal_sandaran, kantong_remot, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP)
+        bantal_peluk, bantal_sandaran, kantong_remot, is_complete,
+        incomplete_detail, product_status, detail, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP)
       RETURNING *
     `;
+
       const insertValues = [
         id_produk,
         id_warna,
@@ -443,12 +491,22 @@ const FinalStock = {
         bantal_peluk,
         bantal_sandaran,
         kantong_remot,
+        is_complete,
+        incomplete_detail,
+        product_status,
+        detail,
       ];
+
+      console.log("Running INSERT query:", insertQuery);
+      console.log("With values:", insertValues);
 
       const insertResult = await (client || pool).query(
         insertQuery,
         insertValues
       );
+
+      console.log("INSERT query result:", insertResult.rows);
+
       return insertResult.rows[0];
     }
   },
