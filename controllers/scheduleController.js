@@ -13,18 +13,20 @@ const scheduleController = {
     }
   },
 
-  // Ambil jadwal sementara berdasarkan ID dengan id dan nama produk
-  async getById(req, res) {
+  // Ambil detail jadwal sementara berdasarkan ID
+  async getScheduleDetails(req, res) {
     const { id } = req.params;
     try {
-      const schedule = await Schedule.getScheduleById(id);
-      if (!schedule) {
+      const scheduleDetails = await Schedule.getScheduleDetailsById(id);
+      if (!scheduleDetails) {
         return res.status(404).json({ message: "Schedule not found" });
       }
-      res.json(schedule); // Mengirimkan data jadwal final dengan id_produk dan nama produk
+      res.json(scheduleDetails); // Mengirimkan data detail jadwal
     } catch (error) {
-      console.error("Error fetching schedule by ID:", error);
-      res.status(500).json({ message: "Failed to fetch schedule", error });
+      console.error("Error fetching schedule details by ID:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to fetch schedule details", error });
     }
   },
 };
