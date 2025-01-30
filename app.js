@@ -17,6 +17,8 @@ const kendaraanRoutes = require("./routes/kendaraanRoutes");
 
 const stockOverviewRoutes = require("./routes/stockOverviewRoutes");
 
+const scheduleRoutes = require("./routes/scheduleRoutes");
+
 const express = require("express");
 const Sentry = require("@sentry/node");
 const cors = require("cors");
@@ -26,6 +28,7 @@ const app = express();
 app.use(cors());
 
 app.use(express.json());
+app.use("/api/auth", authRoutes);
 
 // Lindungi rute produk dan atribut
 app.use("/api/products", authMiddleware, productRoutes);
@@ -42,7 +45,7 @@ app.use("/api/kendaraan", authMiddleware, kendaraanRoutes);
 
 app.use("/api/stocks", authMiddleware, stockOverviewRoutes);
 
-app.use("/api/auth", authRoutes);
+app.use("/api/schedules", authMiddleware, scheduleRoutes);
 
 // Add this after all routes,
 // but before any other error-handling middlewares are defined

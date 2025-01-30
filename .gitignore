@@ -53,3 +53,6 @@ service-worker.js
 
 # Sentry Config File
 .sentryclirc
+
+
+.DS_Store
