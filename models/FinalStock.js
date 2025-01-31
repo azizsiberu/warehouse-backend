@@ -329,10 +329,41 @@ const FinalStock = {
 
   async findById(stockId, client) {
     const query = `
-      SELECT id, id_produk, id_warna, id_finishing, id_lokasi, stok_tersedia, is_custom,
-             is_raw_material, ukuran, id_kain, id_kaki, id_dudukan, bantal_peluk,
-             bantal_sandaran, kantong_remot, created_at, updated_at
-      FROM final_stock WHERE id = $1
+      SELECT 
+        fs.id, 
+        fs.id_produk, 
+        fs.id_warna, 
+        fs.id_finishing, 
+        fs.id_lokasi, 
+        fs.stok_tersedia, 
+        fs.is_custom,
+        fs.is_raw_material, 
+        fs.ukuran, 
+        fs.id_kain, 
+        fs.id_kaki, 
+        fs.id_dudukan, 
+        fs.bantal_peluk,
+        fs.bantal_sandaran, 
+        fs.kantong_remot, 
+        fs.created_at, 
+        fs.updated_at,
+        p.nama AS nama_produk, 
+        p.foto_produk, 
+        w.warna, 
+        f.finishing, 
+        wh.lokasi AS lokasi
+      FROM 
+        final_stock fs
+      LEFT JOIN 
+        produk p ON fs.id_produk = p.id_produk
+      LEFT JOIN 
+        warna w ON fs.id_warna = w.id_warna
+      LEFT JOIN 
+        finishing f ON fs.id_finishing = f.id_finishing
+      LEFT JOIN 
+        warehouse wh ON fs.id_lokasi = wh.id
+      WHERE 
+        fs.id = $1
     `;
     const result = await (client || pool).query(query, [stockId]);
 
@@ -346,7 +377,6 @@ const FinalStock = {
     );
     return result.rows[0];
   },
-
   async upsertStock(stockData, client) {
     const {
       id_produk,

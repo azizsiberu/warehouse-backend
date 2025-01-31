@@ -24,6 +24,7 @@ const Schedule = {
     return result.rows;
   },
 
+  // Ambil detail jadwal sementara berdasarkan ID transaksi
   async getScheduleDetailsById(id) {
     try {
       console.log(`Fetching schedule details for transaction ID: ${id}`);
@@ -40,8 +41,12 @@ const Schedule = {
           t.tanggal_transaksi,
           t.status_pembayaran,
           t.tanggal_pengiriman,
-          t.catatan AS request_pengiriman,
-          CONCAT(c.kabupaten, ' - ', c.provinsi) AS lokasi,
+          t.catatan,
+          c.alamat_pelanggan,  
+          c.kelurahan, 
+          c.kecamatan,  
+          c.kabupaten,  
+          c.provinsi,  
           ARRAY_AGG(
             JSON_BUILD_OBJECT(
               'product_id', p.id_produk, 
@@ -53,6 +58,9 @@ const Schedule = {
               'status', td.status,
               'product_photo', p.foto_produk, 
               'dimensi', p.panjang || ' x ' || p.lebar || ' x ' || p.tinggi,
+              'warna', w.warna, 
+              'finishing', f.finishing, 
+              'catatan', td.catatan,
               'custom_details', JSON_BUILD_OBJECT(
                 'dimensi', cd.dimensi,
                 'bantal_peluk', cd.bantal_peluk,
@@ -61,9 +69,7 @@ const Schedule = {
                 'puff', cd.puff,
                 'kain', k.kain,
                 'jenis_kaki', kaki.jenis_kaki,
-                'dudukan', dudukan.dudukan,
-                'finishing', f.finishing,
-                'warna', w.warna
+                'dudukan', dudukan.dudukan
               ),
               'sofa_details', JSON_BUILD_OBJECT(
                 'id_style', s.id_style,
@@ -99,7 +105,7 @@ const Schedule = {
         LEFT JOIN kaki ka ON s.id_kaki = ka.id_kaki
         WHERE t.id = $1
         GROUP BY t.id, u.nama_lengkap, c.nama_pelanggan, c.nomor_hp, t.order_number, t.tanggal_transaksi, t.status_pembayaran, t.tanggal_pengiriman, t.catatan,
-                 c.kabupaten, c.provinsi
+                 c.alamat_pelanggan, c.kelurahan, c.kecamatan, c.kabupaten, c.provinsi
       `,
         [id]
       );
