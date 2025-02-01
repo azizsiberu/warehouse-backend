@@ -202,6 +202,17 @@ const authController = {
       res.status(500).json({ message: "Error saat verifikasi kode", error });
     }
   },
+
+  // Fungsi untuk memvalidasi token
+  async validateToken(req, res) {
+    try {
+      console.log("Token valid untuk user:", req.user);
+      res.status(200).json({ valid: true, user: req.user });
+    } catch (error) {
+      console.error("Validasi token gagal:", error);
+      res.status(401).json({ valid: false, message: "Token tidak valid" });
+    }
+  },
 };
 
 module.exports = authController;
