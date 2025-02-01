@@ -554,8 +554,29 @@ RETURNING *;
     const queryParams = [id_produk]; // Menggunakan ID produk yang diterima
     const query = `
     SELECT 
-      final_stock.*, 
-      produk.nama AS produk_nama, 
+      final_stock.id AS final_id,
+      final_stock.id_produk AS final_id_produk,
+      final_stock.id_warna AS final_id_warna,
+      final_stock.id_finishing AS final_id_finishing,
+      final_stock.id_lokasi AS final_id_lokasi,
+      final_stock.stok_tersedia AS final_stok_tersedia,
+      final_stock.is_custom AS final_is_custom,
+      final_stock.is_raw_material AS final_is_raw_material,
+      final_stock.ukuran AS final_ukuran,
+      final_stock.id_kain AS final_id_kain,
+      final_stock.id_kaki AS final_id_kaki,
+      final_stock.id_dudukan AS final_id_dudukan,
+      final_stock.bantal_peluk AS final_bantal_peluk,
+      final_stock.bantal_sandaran AS final_bantal_sandaran,
+      final_stock.kantong_remot AS final_kantong_remot,
+      final_stock.created_at AS final_created_at,
+      final_stock.updated_at AS final_updated_at,
+      final_stock.is_complete AS final_is_complete,
+      final_stock.incomplete_detail AS final_incomplete_detail,
+      final_stock.product_status AS final_product_status,
+      final_stock.detail AS final_detail,
+
+      produk.nama AS produk_nama,
       produk.id_kategori, 
       produk.id_subkategori,
       produk.id_vendor, 
@@ -590,25 +611,25 @@ RETURNING *;
       sofa.bantal_sandaran AS sofa_bantal_sandaran,
       sofa.kantong_remot AS sofa_kantong_remot,
       sofa.puff AS sofa_puff
-    FROM final_stock
-    JOIN produk ON final_stock.id_produk = produk.id_produk
-    LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
-    LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
-    LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
-    LEFT JOIN jenis_produk ON produk.id_jenis = jenis_produk.id_jenis
-    LEFT JOIN warna ON final_stock.id_warna = warna.id_warna
-    LEFT JOIN finishing ON final_stock.id_finishing = finishing.id_finishing
-    LEFT JOIN kain ON final_stock.id_kain = kain.id_kain
-    LEFT JOIN kaki ON final_stock.id_kaki = kaki.id_kaki
-    LEFT JOIN dudukan ON final_stock.id_dudukan = dudukan.id_dudukan
-    LEFT JOIN warehouse ON final_stock.id_lokasi = warehouse.id
-    LEFT JOIN sofa ON produk.id_produk = sofa.id_produk
-    LEFT JOIN kain AS sofa_kain ON sofa.id_kain = sofa_kain.id_kain
-    LEFT JOIN kaki AS sofa_kaki ON sofa.id_kaki = sofa_kaki.id_kaki
-    LEFT JOIN dudukan AS sofa_dudukan ON sofa.id_dudukan = sofa_dudukan.id_dudukan
-    LEFT JOIN style ON sofa.id_style = style.id_style
-    WHERE final_stock.id_produk = $1 AND final_stock.stok_tersedia > 0
-  `;
+  FROM final_stock
+  JOIN produk ON final_stock.id_produk = produk.id_produk
+  LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
+  LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
+  LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
+  LEFT JOIN jenis_produk ON produk.id_jenis = jenis_produk.id_jenis
+  LEFT JOIN warna ON final_stock.id_warna = warna.id_warna
+  LEFT JOIN finishing ON final_stock.id_finishing = finishing.id_finishing
+  LEFT JOIN kain ON final_stock.id_kain = kain.id_kain
+  LEFT JOIN kaki ON final_stock.id_kaki = kaki.id_kaki
+  LEFT JOIN dudukan ON final_stock.id_dudukan = dudukan.id_dudukan
+  LEFT JOIN warehouse ON final_stock.id_lokasi = warehouse.id
+  LEFT JOIN sofa ON produk.id_produk = sofa.id_produk
+  LEFT JOIN kain AS sofa_kain ON sofa.id_kain = sofa_kain.id_kain
+  LEFT JOIN kaki AS sofa_kaki ON sofa.id_kaki = sofa_kaki.id_kaki
+  LEFT JOIN dudukan AS sofa_dudukan ON sofa.id_dudukan = sofa_dudukan.id_dudukan
+  LEFT JOIN style ON sofa.id_style = style.id_style
+  WHERE final_stock.id_produk = $1 AND final_stock.stok_tersedia > 0;
+`;
 
     try {
       console.log("Executing query:", query); // Log query SQL yang dijalankan
