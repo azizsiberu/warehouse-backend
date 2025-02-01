@@ -31,16 +31,28 @@ const scheduleController = {
     }
   },
 
-  // Ambil detail stok berdasarkan ID (menggunakan findById dari FinalStock)
+  // Ambil detail stok berdasarkan ID (menggunakan getCompleteStockDetailsByProductId dari FinalStock)
   async findStockById(req, res) {
     const { id } = req.params;
+
+    // Memastikan id_produk adalah angka
+    const productId = parseInt(id, 10);
+
+    if (isNaN(productId)) {
+      return res.status(400).json({ message: "Invalid product ID" }); // Response jika ID tidak valid
+    }
+
     try {
-      console.log(`Fetching stock details for transaction/product ID: ${id}`);
+      console.log(
+        `Fetching stock details for transaction/product ID: ${productId}`
+      );
 
       // Call the findById method from FinalStock model to get stock details
-      const stockDetails = await FinalStock.findById(id);
+      const stockDetails = await FinalStock.getCompleteStockDetailsByProductId(
+        productId
+      );
 
-      if (!stockDetails) {
+      if (stockDetails.length === 0) {
         return res.status(404).json({ message: "Stock not found" });
       }
 

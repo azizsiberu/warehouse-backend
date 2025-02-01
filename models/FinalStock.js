@@ -540,6 +540,102 @@ RETURNING *;
       return insertResult.rows[0];
     }
   },
+
+  async getCompleteStockDetailsByProductId(id_produk) {
+    console.log(
+      "getCompleteStockDetailsByProductId called with id_produk:",
+      id_produk
+    ); // Log ID Produk yang diterima
+
+    if (isNaN(id_produk)) {
+      throw new Error("Invalid product ID"); // Pastikan ID produk valid
+    }
+
+    const queryParams = [id_produk]; // Menggunakan ID produk yang diterima
+    const query = `
+    SELECT 
+      final_stock.*, 
+      produk.nama AS produk_nama, 
+      produk.id_kategori, 
+      produk.id_subkategori,
+      produk.id_vendor, 
+      produk.estimasi_waktu_produksi, 
+      produk.panjang, 
+      produk.lebar, 
+      produk.tinggi, 
+      produk.foto_produk, 
+      produk.masa_garansi, 
+      produk.id_jenis, 
+      produk.sku AS produk_sku, 
+      kategori.kategori, 
+      subkategori.subkategori, 
+      vendor.nama_vendor AS vendor,
+      jenis_produk.jenis_produk,
+      warna.warna AS final_warna,
+      finishing.finishing AS final_finishing,
+      kain.kain AS final_kain,
+      kaki.jenis_kaki AS final_kaki,
+      dudukan.dudukan AS final_dudukan,
+      warehouse.lokasi AS final_gudang,
+      style.style AS produk_style,
+      sofa.id_kain AS sofa_id_kain,
+      sofa_kain.kain AS sofa_kain,
+      sofa.id_kaki AS sofa_id_kaki,
+      sofa_kaki.jenis_kaki AS sofa_kaki,
+      sofa.id_dudukan AS sofa_id_dudukan,
+      sofa_dudukan.dudukan AS sofa_dudukan,
+      sofa.id_style AS sofa_id_style,
+      style.style AS sofa_style,
+      sofa.bantal_peluk AS sofa_bantal_peluk,
+      sofa.bantal_sandaran AS sofa_bantal_sandaran,
+      sofa.kantong_remot AS sofa_kantong_remot,
+      sofa.puff AS sofa_puff
+    FROM final_stock
+    JOIN produk ON final_stock.id_produk = produk.id_produk
+    LEFT JOIN kategori ON produk.id_kategori = kategori.id_kategori
+    LEFT JOIN subkategori ON produk.id_subkategori = subkategori.id_subkategori
+    LEFT JOIN vendor ON produk.id_vendor = vendor.id_vendor
+    LEFT JOIN jenis_produk ON produk.id_jenis = jenis_produk.id_jenis
+    LEFT JOIN warna ON final_stock.id_warna = warna.id_warna
+    LEFT JOIN finishing ON final_stock.id_finishing = finishing.id_finishing
+    LEFT JOIN kain ON final_stock.id_kain = kain.id_kain
+    LEFT JOIN kaki ON final_stock.id_kaki = kaki.id_kaki
+    LEFT JOIN dudukan ON final_stock.id_dudukan = dudukan.id_dudukan
+    LEFT JOIN warehouse ON final_stock.id_lokasi = warehouse.id
+    LEFT JOIN sofa ON produk.id_produk = sofa.id_produk
+    LEFT JOIN kain AS sofa_kain ON sofa.id_kain = sofa_kain.id_kain
+    LEFT JOIN kaki AS sofa_kaki ON sofa.id_kaki = sofa_kaki.id_kaki
+    LEFT JOIN dudukan AS sofa_dudukan ON sofa.id_dudukan = sofa_dudukan.id_dudukan
+    LEFT JOIN style ON sofa.id_style = style.id_style
+    WHERE final_stock.id_produk = $1 AND final_stock.stok_tersedia > 0
+  `;
+
+    try {
+      console.log("Executing query:", query); // Log query SQL yang dijalankan
+      console.log("With parameters:", queryParams); // Log parameter yang dikirimkan ke query
+
+      const result = await pool.query(query, queryParams);
+
+      if (result.rows.length === 0) {
+        console.log("No stock found for product ID:", id_produk); // Log jika tidak ada stok yang ditemukan
+      } else {
+        console.log(
+          "Stock details fetched successfully for product ID:",
+          id_produk
+        ); // Log sukses
+        console.log("Result rows:", result.rows); // Log hasil yang diterima dari database
+      }
+
+      return result.rows;
+    } catch (error) {
+      console.error(
+        "Error while fetching stock details for product ID:",
+        id_produk
+      ); // Log jika ada error
+      console.error("Error details:", error); // Log detil error
+      throw error; // Lempar ulang error setelah log
+    }
+  },
 };
 
 module.exports = FinalStock;
