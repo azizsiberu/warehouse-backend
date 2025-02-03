@@ -559,7 +559,7 @@ RETURNING *;
       final_stock.id_warna AS final_id_warna,
       final_stock.id_finishing AS final_id_finishing,
       final_stock.id_lokasi AS final_id_lokasi,
-      final_stock.stok_tersedia AS final_stok_tersedia,
+      (final_stock.stok_tersedia - final_stock.stok_dipesan) AS final_stok_tersedia,
       final_stock.is_custom AS final_is_custom,
       final_stock.is_raw_material AS final_is_raw_material,
       final_stock.ukuran AS final_ukuran,
@@ -628,7 +628,9 @@ RETURNING *;
   LEFT JOIN kaki AS sofa_kaki ON sofa.id_kaki = sofa_kaki.id_kaki
   LEFT JOIN dudukan AS sofa_dudukan ON sofa.id_dudukan = sofa_dudukan.id_dudukan
   LEFT JOIN style ON sofa.id_style = style.id_style
-  WHERE final_stock.id_produk = $1 AND final_stock.stok_tersedia > 0;
+  WHERE final_stock.id_produk = $1 
+  AND (final_stock.stok_tersedia - final_stock.stok_dipesan) > 0
+;
 `;
 
     try {

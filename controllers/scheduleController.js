@@ -67,6 +67,11 @@ const scheduleController = {
   // 🔹 Simpan jadwal pengiriman final
   async createFinalSchedule(req, res) {
     try {
+      console.log(
+        "📩 Data diterima di backend:",
+        JSON.stringify(req.body, null, 2)
+      );
+
       const {
         id_transaksi,
         id_customer,
@@ -86,7 +91,7 @@ const scheduleController = {
         return res.status(400).json({ message: "Data tidak lengkap" });
       }
 
-      const result = await FinalSchedule.createFinalSchedule({
+      const result = await Schedule.createFinalSchedule({
         id_transaksi,
         id_customer,
         tanggal_pengiriman,
@@ -116,7 +121,7 @@ const scheduleController = {
         return res.status(400).json({ message: "ID jadwal diperlukan" });
       }
 
-      const result = await FinalSchedule.finalizeSchedule(id_schedule);
+      const result = await Schedule.finalizeSchedule(id_schedule);
       res.status(200).json(result);
     } catch (error) {
       console.error("❌ Error saat finalisasi pengiriman:", error);
@@ -130,7 +135,7 @@ const scheduleController = {
   // 🔹 Ambil semua jadwal pengiriman final
   async getAllFinalSchedules(req, res) {
     try {
-      const schedules = await FinalSchedule.getAllFinalSchedules();
+      const schedules = await Schedule.getAllFinalSchedules();
       res.status(200).json(schedules);
     } catch (error) {
       console.error("❌ Error saat mengambil semua jadwal pengiriman:", error);
@@ -149,9 +154,7 @@ const scheduleController = {
         return res.status(400).json({ message: "ID jadwal diperlukan" });
       }
 
-      const scheduleDetail = await FinalSchedule.getFinalScheduleById(
-        id_schedule
-      );
+      const scheduleDetail = await Schedule.getFinalScheduleById(id_schedule);
       if (!scheduleDetail) {
         return res.status(404).json({ message: "Jadwal tidak ditemukan" });
       }
