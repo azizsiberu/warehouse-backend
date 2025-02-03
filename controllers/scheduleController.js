@@ -63,6 +63,108 @@ const scheduleController = {
       res.status(500).json({ message: "Failed to fetch stock details", error });
     }
   },
+
+  // 🔹 Simpan jadwal pengiriman final
+  async createFinalSchedule(req, res) {
+    try {
+      const {
+        id_transaksi,
+        id_customer,
+        tanggal_pengiriman,
+        id_user_creator,
+        id_user_sales,
+        products,
+      } = req.body;
+      if (
+        !id_transaksi ||
+        !id_customer ||
+        !tanggal_pengiriman ||
+        !id_user_creator ||
+        !id_user_sales ||
+        !products.length
+      ) {
+        return res.status(400).json({ message: "Data tidak lengkap" });
+      }
+
+      const result = await FinalSchedule.createFinalSchedule({
+        id_transaksi,
+        id_customer,
+        tanggal_pengiriman,
+        id_user_creator,
+        id_user_sales,
+        products,
+      });
+
+      res.status(201).json({
+        message: "Jadwal pengiriman final berhasil dibuat",
+        schedule_id: result.id_schedule,
+      });
+    } catch (error) {
+      console.error("❌ Error saat membuat jadwal pengiriman:", error);
+      res.status(500).json({
+        message: "Gagal menyimpan jadwal pengiriman",
+        error: error.message,
+      });
+    }
+  },
+
+  // 🔹 Finalisasi jadwal pengiriman
+  async finalizeSchedule(req, res) {
+    try {
+      const { id_schedule } = req.params;
+      if (!id_schedule) {
+        return res.status(400).json({ message: "ID jadwal diperlukan" });
+      }
+
+      const result = await FinalSchedule.finalizeSchedule(id_schedule);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("❌ Error saat finalisasi pengiriman:", error);
+      res.status(500).json({
+        message: "Gagal memfinalisasi pengiriman",
+        error: error.message,
+      });
+    }
+  },
+
+  // 🔹 Ambil semua jadwal pengiriman final
+  async getAllFinalSchedules(req, res) {
+    try {
+      const schedules = await FinalSchedule.getAllFinalSchedules();
+      res.status(200).json(schedules);
+    } catch (error) {
+      console.error("❌ Error saat mengambil semua jadwal pengiriman:", error);
+      res.status(500).json({
+        message: "Gagal mengambil jadwal pengiriman",
+        error: error.message,
+      });
+    }
+  },
+
+  // 🔹 Ambil detail jadwal pengiriman berdasarkan ID
+  async getFinalScheduleById(req, res) {
+    try {
+      const { id_schedule } = req.params;
+      if (!id_schedule) {
+        return res.status(400).json({ message: "ID jadwal diperlukan" });
+      }
+
+      const scheduleDetail = await FinalSchedule.getFinalScheduleById(
+        id_schedule
+      );
+      if (!scheduleDetail) {
+        return res.status(404).json({ message: "Jadwal tidak ditemukan" });
+      }
+
+      res.status(200).json(scheduleDetail);
+    } catch (error) {
+      console.error("❌ Error saat mengambil detail jadwal:", error);
+      res.status(500).json({
+        message: "Gagal mengambil detail jadwal",
+        error: error.message,
+      });
+    }
+  },
 };
 
 module.exports = scheduleController;

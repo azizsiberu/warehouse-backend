@@ -134,6 +134,172 @@ const Schedule = {
       throw error; // rethrow the error after logging it
     }
   },
+
+  async createFinalSchedule({
+    id_transaksi,
+    id_customer,
+    tanggal_pengiriman,
+    id_user_creator,
+    id_user_sales,
+    products,
+  }) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 🔥 Simpan data final_schedules
+      const scheduleQuery = `
+        INSERT INTO final_schedules (id_transaksi, id_customer, tanggal_pengiriman, id_user_creator, id_user_sales)
+        VALUES ($1, $2, $3, $4, $5) RETURNING id;
+      `;
+      const { rows } = await client.query(scheduleQuery, [
+        id_transaksi,
+        id_customer,
+        tanggal_pengiriman,
+        id_user_creator,
+        id_user_sales,
+      ]);
+
+      const id_schedule = rows[0].id;
+
+      // 🔹 Simpan detail produk ke final_schedule_details
+      for (const product of products) {
+        const detailQuery = `
+          INSERT INTO final_schedule_details (id_schedule, id_final_stock, jumlah, id_transaksi_detail)
+          VALUES ($1, $2, $3, $4);
+        `;
+        await client.query(detailQuery, [
+          id_schedule,
+          product.id_final_stock,
+          product.jumlah,
+          product.id_transaksi_detail,
+        ]);
+      }
+
+      await client.query("COMMIT");
+      return { id_schedule };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+
+  // 🔹 Finalisasi pengiriman: Kurangi stok & update transaksi
+  async finalizeSchedule(id_schedule) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // 🔹 Ambil detail final schedule
+      const detailsQuery = `
+        SELECT id_final_stock, jumlah, id_transaksi_detail
+        FROM final_schedule_details
+        WHERE id_schedule = $1;
+      `;
+      const { rows: scheduleDetails } = await client.query(detailsQuery, [
+        id_schedule,
+      ]);
+
+      if (!scheduleDetails.length) {
+        throw new Error("Tidak ada detail jadwal yang ditemukan.");
+      }
+
+      // 🔹 Proses update stok & status transaksi
+      for (const detail of scheduleDetails) {
+        const { id_final_stock, jumlah, id_transaksi_detail } = detail;
+
+        // 🔥 Kurangi stok final_stock
+        const updateStockQuery = `
+          UPDATE final_stock
+          SET final_stok_tersedia = final_stok_tersedia - $1
+          WHERE id = $2 AND final_stok_tersedia >= $1
+          RETURNING *;
+        `;
+        const { rowCount: stockUpdated } = await client.query(
+          updateStockQuery,
+          [jumlah, id_final_stock]
+        );
+
+        if (!stockUpdated) {
+          throw new Error(
+            `Stok tidak mencukupi untuk final_stock ID: ${id_final_stock}`
+          );
+        }
+
+        // 🔥 Update status di transaction_details
+        const updateTransactionQuery = `
+          UPDATE transaction_details
+          SET status_produk = 'Terkirim'
+          WHERE id = $1;
+        `;
+        await client.query(updateTransactionQuery, [id_transaksi_detail]);
+      }
+
+      // 🔥 Update status pengiriman di final_schedules
+      const updateScheduleQuery = `
+        UPDATE final_schedules
+        SET status_pengiriman = 'terkirim'
+        WHERE id = $1;
+      `;
+      await client.query(updateScheduleQuery, [id_schedule]);
+
+      await client.query("COMMIT");
+      return { message: "Jadwal berhasil difinalisasi" };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+  // 🔹 Ambil semua jadwal pengiriman final
+  async getAllFinalSchedules() {
+    const query = `
+      SELECT 
+        fs.id AS schedule_id,
+        u_sales.nama_lengkap AS sales,
+        c.nama_pelanggan AS pelanggan,
+        CONCAT(c.kecamatan, ' - ', c.kabupaten) AS lokasi,
+        STRING_AGG(p.nama_produk, ' - ') AS nama_produk,
+        fs.tanggal_pengiriman
+      FROM final_schedules fs
+      JOIN users u_sales ON fs.id_user_sales = u_sales.id
+      JOIN customers c ON fs.id_customer = c.id
+      JOIN final_schedule_details fsd ON fs.id = fsd.id_schedule
+      JOIN final_stock f ON fsd.id_final_stock = f.id
+      JOIN products p ON f.final_id_produk = p.id
+      GROUP BY fs.id, u_sales.nama_lengkap, c.nama_pelanggan, c.kecamatan, c.kabupaten, fs.tanggal_pengiriman
+      ORDER BY fs.tanggal_pengiriman DESC;
+    `;
+    const { rows } = await pool.query(query);
+    return rows;
+  },
+
+  // 🔹 Ambil detail jadwal pengiriman berdasarkan ID
+  async getFinalScheduleById(id_schedule) {
+    const query = `
+      SELECT 
+        fs.id AS final_id,
+        u_sales.nama_lengkap AS sales,
+        c.*,
+        fs.tanggal_pengiriman,
+        p.nama_produk AS produk_nama,
+        f.* AS final_stock_data,
+        td.* AS transaction_details_data
+      FROM final_schedules fs
+      JOIN users u_sales ON fs.id_user_sales = u_sales.id
+      JOIN customers c ON fs.id_customer = c.id
+      JOIN final_schedule_details fsd ON fs.id = fsd.id_schedule
+      JOIN final_stock f ON fsd.id_final_stock = f.id
+      JOIN products p ON f.final_id_produk = p.id
+      JOIN transaction_details td ON fsd.id_transaksi_detail = td.id
+      WHERE fs.id = $1;
+    `;
+    const { rows } = await pool.query(query, [id_schedule]);
+    return rows.length ? rows : null;
+  },
 };
 
 module.exports = Schedule;
