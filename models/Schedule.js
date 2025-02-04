@@ -330,6 +330,16 @@ const Schedule = {
                 'product_description', p.deskripsi,
                 'product_photo', p.foto_produk, 
 
+                'schedule_details', JSON_BUILD_OBJECT(
+                    'id_schedule_detail', fsd.id,
+                    'id_schedule', fsd.id_schedule,
+                    'id_final_stock', fsd.id_final_stock,
+                    'jumlah', fsd.jumlah,
+                    'id_transaksi_detail', fsd.id_transaksi_detail,
+                    'created_at', fsd.created_at,
+                    'updated_at', fsd.updated_at
+                ),
+
                 'final_stock', JSON_BUILD_OBJECT(
                     'final_stock_id', f.id,
                     'stok_tersedia', f.stok_tersedia,
@@ -386,7 +396,7 @@ const Schedule = {
         LEFT JOIN warehouse ws ON f.id_lokasi = ws.id
 
         WHERE fs.id = $1
-        GROUP BY fs.id, u_sales.id_users, u_sales.nama_lengkap, c.id;
+        GROUP BY fs.id, u_sales.id_users, u_sales.nama_lengkap, c.id, fsd.id;
     `;
 
     console.log(`Fetching final schedule for ID: ${id_schedule}`);
