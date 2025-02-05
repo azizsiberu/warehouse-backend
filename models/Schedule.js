@@ -318,6 +318,7 @@ const Schedule = {
       SELECT 
         fs.id AS schedule_id,
         u_sales.nama_lengkap AS sales_name,
+        u_sales.id_users,
         c.*,  -- Menyertakan semua kolom dari tabel customers
         fs.tanggal_pengiriman,
         fs.status_pengiriman,
