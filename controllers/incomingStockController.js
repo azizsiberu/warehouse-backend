@@ -1,3 +1,4 @@
+// path: /controllers/incomingStockController.js
 const IncomingStock = require("../models/IncomingStock");
 const FinalStock = require("../models/FinalStock");
 const pool = require("../config/db");

@@ -107,6 +107,9 @@ const FinalStock = {
     if (quantityToReduce <= 0) {
       throw new Error("Jumlah pengurangan harus lebih besar dari 0.");
     }
+    console.log(
+      `🔻 [reduceStockQuantity] Mengurangi stok untuk final_stock ID ${stockId} sebanyak ${quantityToReduce}`
+    );
 
     // Pertama, pastikan stok cukup untuk dikurangi
     const checkQuery = `
@@ -133,7 +136,57 @@ const FinalStock = {
       updateQuery,
       updateValues
     );
+
+    console.log(
+      `✅ [reduceStockQuantity] Stok berhasil dikurangi. Sisa stok: ${updateResult.rows[0].stok_tersedia}`
+    );
     return updateResult.rows[0];
+  },
+
+  // 🆕 Fungsi untuk mengurangi stok yang dipesan (stok_dipesan)
+  async reduceReservedStock(stockId, quantityToReduce, client) {
+    if (quantityToReduce <= 0) {
+      throw new Error("Jumlah pengurangan harus lebih besar dari 0.");
+    }
+
+    console.log(
+      `🔻 [reduceReservedStock] Mengurangi stok dipesan untuk final_stock ID ${stockId} sebanyak ${quantityToReduce}`
+    );
+
+    // Pastikan stok_dipesan cukup sebelum dikurangi
+    const checkQuery = `SELECT stok_dipesan FROM final_stock WHERE id = $1`;
+    const checkResult = await (client || pool).query(checkQuery, [stockId]);
+
+    if (checkResult.rows.length === 0) {
+      throw new Error(`❌ Final stock dengan ID ${stockId} tidak ditemukan.`);
+    }
+
+    const reservedStock = checkResult.rows[0].stok_dipesan;
+    if (reservedStock < quantityToReduce) {
+      throw new Error(
+        `❌ Stok dipesan tidak mencukupi. Dipesan: ${reservedStock}, Dikurangi: ${quantityToReduce}`
+      );
+    }
+
+    // Lakukan update stok_dipesan
+    const updateQuery = `
+      UPDATE final_stock
+      SET stok_dipesan = stok_dipesan - $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING stok_dipesan
+    `;
+    const updateValues = [quantityToReduce, stockId];
+
+    const updateResult = await (client || pool).query(
+      updateQuery,
+      updateValues
+    );
+
+    console.log(
+      `✅ [reduceReservedStock] Stok dipesan berhasil dikurangi. Sisa stok_dipesan: ${updateResult.rows[0].stok_dipesan}`
+    );
+
+    return updateResult.rows[0].stok_dipesan;
   },
 
   // Fungsi untuk mengambil semua stok
@@ -377,6 +430,7 @@ const FinalStock = {
     );
     return result.rows[0];
   },
+
   async upsertStock(stockData, client) {
     const {
       id_produk,
@@ -406,7 +460,7 @@ const FinalStock = {
     }
 
     const query = `
-    SELECT id, stok_tersedia FROM final_stock
+    SELECT id, stok_tersedia, stok_dipesan FROM final_stock
     WHERE id_produk = $1 AND id_warna IS NOT DISTINCT FROM $2
       AND id_finishing IS NOT DISTINCT FROM $3
       AND id_lokasi = $4 AND is_custom = $5
@@ -451,30 +505,38 @@ const FinalStock = {
 
     console.log("SELECT query result:", result.rows);
 
+    // 🆕 Menentukan apakah stok_dipesan harus ditambahkan
+    const isReserved = product_status === "Sudah Dipesan";
+    console.log(`Is product reserved (Sudah Dipesan)? ${isReserved}`);
+
     if (result.rows.length > 0) {
       // Jika ditemukan, update stok_tersedia
       const stockId = result.rows[0].id;
       const newStock = result.rows[0].stok_tersedia + stok_tersedia;
+      const newReservedStock = isReserved
+        ? result.rows[0].stok_dipesan + stok_tersedia
+        : result.rows[0].stok_dipesan; // Jika status bukan "Sudah Dipesan", stok_dipesan tidak berubah
 
       console.log(
-        `Record found. Updating stock ID: ${stockId} with new stock: ${newStock}`
+        `Updating stock ID: ${stockId} | New stok_tersedia: ${newStock} | New stok_dipesan: ${newReservedStock}`
       );
 
       const updateQuery = `
- UPDATE final_stock
-SET stok_tersedia = $1,
-    updated_at = CURRENT_TIMESTAMP,
-    is_complete = $2::BOOLEAN,
-    incomplete_detail = $3::TEXT,
-    product_status = $4::TEXT,
-    detail = $5::TEXT
-WHERE id = $6
-RETURNING *;
-
-`;
+      UPDATE final_stock
+      SET stok_tersedia = $1,
+          stok_dipesan = $2,
+          updated_at = CURRENT_TIMESTAMP,
+          is_complete = $3::BOOLEAN,
+          incomplete_detail = $4::TEXT,
+          product_status = $5::TEXT,
+          detail = $6::TEXT
+      WHERE id = $7
+      RETURNING *;
+      `;
 
       const updateValues = [
         newStock,
+        newReservedStock,
         is_complete,
         incomplete_detail,
         product_status,
@@ -497,12 +559,14 @@ RETURNING *;
       // Jika tidak ditemukan, tambahkan baris baru
       console.log("No matching record found. Inserting new stock data.");
 
+      const initialReservedStock = isReserved ? stok_tersedia : 0; // Jika "Sudah Dipesan", stok_dipesan sama dengan stok masuk
+
       const insertQuery = `
       INSERT INTO final_stock (id_produk, id_warna, id_finishing, id_lokasi, stok_tersedia,
-        is_custom, is_raw_material, ukuran, id_kain, id_kaki, id_dudukan,
+        stok_dipesan, is_custom, is_raw_material, ukuran, id_kain, id_kaki, id_dudukan,
         bantal_peluk, bantal_sandaran, kantong_remot, is_complete,
         incomplete_detail, product_status, detail, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP)
       RETURNING *
     `;
 
@@ -512,6 +576,7 @@ RETURNING *;
         id_finishing,
         id_lokasi,
         stok_tersedia,
+        initialReservedStock, // Jika "Sudah Dipesan", stok_dipesan = stok_tersedia
         is_custom,
         is_raw_material,
         ukuran,

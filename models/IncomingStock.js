@@ -1,3 +1,4 @@
+// path : /models/IncomingStock.js
 const pool = require("../config/db");
 
 const addIncomingStock = async (products, client) => {

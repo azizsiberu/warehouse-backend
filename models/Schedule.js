@@ -396,7 +396,7 @@ const Schedule = {
         LEFT JOIN warehouse ws ON f.id_lokasi = ws.id
 
         WHERE fs.id = $1
-        GROUP BY fs.id, u_sales.id_users, u_sales.nama_lengkap, c.id, fsd.id;
+        GROUP BY fs.id, u_sales.id_users, u_sales.nama_lengkap, c.id;
     `;
 
     console.log(`Fetching final schedule for ID: ${id_schedule}`);
