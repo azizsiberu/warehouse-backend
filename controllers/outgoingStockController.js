@@ -69,11 +69,21 @@ const outgoingStockController = {
           console.log(`Vehicle processed successfully. ID: ${vehicleId}`);
         }
 
-        // 4. Kurangi stok
+        // 4. Kurangi stok tersedia
         console.log(
-          `Reducing stock for final_stock ID ${item.id_final_stock} by ${item.jumlah}`
+          `Reducing available stock for final_stock ID ${item.id_final_stock} by ${item.jumlah}`
         );
         await FinalStock.reduceStockQuantity(
+          item.id_final_stock,
+          item.jumlah,
+          client
+        );
+
+        // 4B. **Kurangi stok dipesan** (stok yang sudah dipesan)
+        console.log(
+          `Reducing reserved stock for final_stock ID ${item.id_final_stock} by ${item.jumlah}`
+        );
+        await FinalStock.reduceReservedStock(
           item.id_final_stock,
           item.jumlah,
           client
@@ -126,7 +136,6 @@ const outgoingStockController = {
       client.release();
     }
   },
-
   // stok keluar berdasarkan menu finalschedule
   async createOutgoingStockWithReservedReduction(req, res) {
     const client = await pool.connect();
