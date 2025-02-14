@@ -49,6 +49,8 @@ const Schedule = {
         SELECT 
           t.id AS transaction_id,
           u.nama_lengkap AS sales_name,
+          u.id_users AS sales_id,
+          c.id,
           c.nama_pelanggan,
           c.nomor_hp,
           t.order_number,
@@ -63,6 +65,7 @@ const Schedule = {
           c.provinsi,  
           ARRAY_AGG(
             JSON_BUILD_OBJECT(
+              'transaction_detail_id', td.id,
               'product_id', p.id_produk, 
               'product_name', p.nama, 
               'quantity', td.jumlah,
@@ -118,7 +121,7 @@ const Schedule = {
         LEFT JOIN dudukan d ON s.id_dudukan = d.id_dudukan
         LEFT JOIN kaki ka ON s.id_kaki = ka.id_kaki
         WHERE t.id = $1
-        GROUP BY t.id, u.nama_lengkap, c.nama_pelanggan, c.nomor_hp, t.order_number, t.tanggal_transaksi, t.status_pembayaran, t.tanggal_pengiriman, t.catatan,
+        GROUP BY t.id, u.nama_lengkap, u.id_users, c.id, c.nama_pelanggan, c.nomor_hp, t.order_number, t.tanggal_transaksi, t.status_pembayaran, t.tanggal_pengiriman, t.catatan,
                  c.alamat_pelanggan, c.kelurahan, c.kecamatan, c.kabupaten, c.provinsi
                  ;
       `,
