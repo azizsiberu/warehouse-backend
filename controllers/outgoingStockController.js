@@ -131,6 +131,7 @@ const outgoingStockController = {
   async createOutgoingStockWithReservedReduction(req, res) {
     const client = await pool.connect();
     try {
+      console.log("=== Incoming Request: Create Outgoing Stock ===" + req.body);
       const payload = req.body;
 
       console.log(
@@ -144,7 +145,11 @@ const outgoingStockController = {
 
       await client.query("BEGIN");
 
+      let id_schedule = null; // Untuk menyimpan ID schedule dari transaksi
+
       for (const item of payload) {
+        id_schedule = item.id_schedule; // Ambil ID schedule dari payload
+
         // 1. Proses driver
         let driverId = item.id_kurir || null;
         if (!driverId && item.driver?.nama) {
@@ -246,15 +251,67 @@ const outgoingStockController = {
         }
       }
 
+      // 8. **Update status_pengiriman menjadi 'Dikirim' di final_schedules**
+      if (id_schedule) {
+        console.log(
+          `Updating status_pengiriman menjadi 'Dikirim' untuk id_schedule: ${id_schedule}`
+        );
+        await client.query(
+          `UPDATE final_schedules SET status_pengiriman = 'Dikirim', updated_at = NOW() WHERE id = $1`,
+          [id_schedule]
+        );
+        console.log(
+          `✅ Status pengiriman di final_schedules telah diperbarui.`
+        );
+      }
+
+      // 9. **Ambil id_transaksi_detail dari final_schedule_details**
+      console.log(
+        `Fetching id_transaksi_detail dari final_schedule_details untuk id_schedule: ${id_schedule}`
+      );
+      const transactionDetailIds = await client.query(
+        `SELECT id_transaksi_detail FROM final_schedule_details WHERE id_schedule = $1`,
+        [id_schedule]
+      );
+
+      if (transactionDetailIds.rows.length > 0) {
+        const idTransaksiDetails = transactionDetailIds.rows.map(
+          (row) => row.id_transaksi_detail
+        );
+
+        // 10. **Update status menjadi 'Terkirim' di transaction_details**
+        console.log(
+          `Updating status transaksi menjadi 'Terkirim' untuk id_transaksi_detail:`,
+          idTransaksiDetails
+        );
+        await client.query(
+          `UPDATE transaction_details SET status = 'Terkirim' WHERE id IN (${idTransaksiDetails
+            .map((_, i) => `$${i + 1}`)
+            .join(",")})`,
+          idTransaksiDetails
+        );
+        console.log(
+          `✅ Status transaksi di transaction_details telah diperbarui.`
+        );
+
+        console.log(
+          `✅ Status transaksi di transaction_details telah diperbarui.`
+        );
+      } else {
+        console.log(
+          `⚠️ Tidak ada id_transaksi_detail yang ditemukan untuk id_schedule: ${id_schedule}`
+        );
+      }
+
       await client.query("COMMIT");
       res.status(201).json({
         message:
-          "Pengiriman berhasil disimpan dengan pengurangan stok dipesan.",
+          "Pengiriman berhasil disimpan dengan pengurangan stok dipesan. Status pengiriman telah diperbarui.",
       });
     } catch (error) {
       await client.query("ROLLBACK");
       console.error(
-        "Error in createOutgoingStockWithReservedReduction:",
+        "❌ Error in createOutgoingStockWithReservedReduction:",
         error.message
       );
       res
